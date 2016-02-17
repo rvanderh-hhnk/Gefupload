@@ -1,6 +1,6 @@
 # GefuploadPortaal
 
-Dit is een project voor het maken van een Gefupload portaal. 
+Een portaal voor het aanleveren en controleren van gef-bestanden. 
 
 De app waypoints: 
 - heeft een leaflet webviewer 
