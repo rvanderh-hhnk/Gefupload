@@ -1,0 +1,916 @@
+#-------------------------------------------------------------------------------
+# Name:         TestGefData
+# Purpose:      testen van gef-data uit dictionary
+#
+# Author:      Bart
+#
+# Created:     31-10-2015
+# Copyright:   (c) Bart 2015
+# Licence:     to rock
+#-------------------------------------------------------------------------------
+#!/usr/bin/env python
+
+# import system modules
+import os, sys
+# import django modules
+from django import forms
+from django.contrib import messages
+from django.contrib.auth.models import User as auth_user
+# import django spatial-modules
+from django.contrib.gis.gdal import OGRGeometry, OGRGeomType, SpatialReference, CoordTransform # https://docs.djangoproject.com/en/1.8/ref/contrib/gis/gdal/#ogr-geometries
+# Custom modules
+from waypoints.models import Waypoint, Boring, Sondering, Peilbuisput, Peilbuisgegevens, Projecten
+import UtlGefOpen
+from Utl import print_log 
+
+
+# deel A: hoofdprogramma: gef_main, gef_standaard,
+# deel B: specifieke gef en save functies:  gef_boringen, gef_peilbuisputten, gef_peilbuis, gef_sonderingen, 
+#                               save_boring, save_peilbuisput, save_sondering, save_project, save_waypoint.
+# deel C: nevenfuncties met korte checks en Get-functies die buiten UtlGefOpen vallen 
+# deel D: overige functies: PdfCheck, ProjectCountStart, ProjectCount, send_email.
+# UtlGefOpen: script voor uitlezen gef: headerdictionary en standaard Get-functies
+
+#########################################################################################################
+####################################### deel A: hoofdprogramma ##########################################
+#########################################################################################################
+
+def gef_main(request,gefFile,d_GEF):
+    # 1.) standaard gef-waarden ophalen als dictionary
+    d = gef_standaard(request,gefFile,d_GEF)    #{User, UserID, gefFile, gefFileNaam, CompanyID, ProjectID, 
+                                                # StartDatum, SoortGef, Hyperlink_root, X, Y, Z, g}
+    
+    # 2.) Geometrie punt toevoegen
+    d['PointGeom'] = Get_PointGeom(d)
+    
+    # Tests werken nog niet, dus alles op 'false'
+    Test1 = False # plotable
+    Test2 = False # consistent data block
+    Test3 = False # correcte header
+    Test4 = False # herkend als BOREHOLE/GEF-BORE/CPT-Report (boring/pbp/sondering)
+    Test5 = False # beschreven als BOREHOLE/GEF-BORE/CPT-Report (boring/pbp/sondering)
+
+    if IsCorrectBestand(request, d, d_GEF, Test1, Test2, Test3, Test4, Test5) and d['g']:
+        # Boringen
+        if d['SoortGef'] == 'boring':
+            d = gef_boring(request,d,d_GEF)
+            if d['g']:
+                save_boring(request,d,d_GEF)
+
+        # Peilbuisputten
+        elif d['SoortGef'] == 'peilbuisput':
+            d = gef_peilbuisput(request,d,d_GEF) #BESTAND_PARENT, BORING_ID, DATUM_PLAATSING, AANTAL_PEILBUIZEN, PROJECTNUMMER
+            d = gef_peilbuis(request,d,d_GEF) #PEILBUISIDENT, BOVENKANT_PEILBUIS, LENGTE_PEILBUIS,LENGTE_ZANDVANG, 
+                                                #filtergegevens: AANTAL_FILTERS, BOVENKANT_FILTER, ONDERKANT_FILTER,LENGTE_FILTER
+            if d['g']:
+                save_peilbuisput(request,d,d_GEF)
+                save_peilbuis(request, d, d_GEF)
+
+        # Sonderingen
+        elif d['SoortGef'] == 'sondering':
+            d = gef_sondering(request,d,d_GEF)
+            if d['g']:
+                save_sondering(request,d,d_GEF)
+
+        # Projectgegevens en Waypoints
+        if d['g']: # alleen als er geen fouten in zitten
+            # 3.) opslaan project
+            d = save_project(request, d)
+            # 4.) opslaan waypoint
+            d = save_waypoint(request, d)
+            # 5.) Opslaan standaard gef-waarden
+        return True
+    else:
+        return False
+    # except TypeError:
+    #     print ("TypeError")
+    #     print_log(request, "ERROR", '%s niet kunnen opslaan, controleer bestand'%gefFile)
+    # except:
+    #     print "onverwachte error in gef_main"
+ 
+def gef_standaard(request,gefFile,d_GEF):
+    ''' Haalt de standaard gegevens op uit gef-bestanden via UtlGefOpen en geeft dictionary terug.
+    Voert verschillende checks uit en genereert ook foutmeldingen.'''
+    # try:
+    g = True
+
+    # User bepalen
+    if request.user.is_authenticated:
+        User = str(request.user) # geeft ook AnonymousUser
+    else:
+        User = "Onbekend"
+    # UserId bepalen
+    if str(request.user) == "AnonymousUser":
+        UserId = 13 # opgezocht. latern misschen doen: auth_user.objects.filter(username = "Anoniem")
+    else:
+        UserId = request.user.id
+  
+    gefFileNaam = str(gefFile) #[-5:] #os.path.basename(str(gefFile)) # ipv targetPath
+
+    # Bepalen soort gef
+    #  r227 tm r234
+    SoortGef = Get_SoortGef(d_GEF)
+    if SoortGef == None or SoortGef == 'onbekend':
+        g = False
+        # Foutmelding...
+        print_log(request, "ERROR", '%s soort gef onbekend'%(gefFile))
+        if 'REPORTCODE' in d_GEF:
+            print ('\n'+str(d_GEF['REPORTCODE'])+'\n')
+        elif 'PROCEDURECODE' in d_GEF:
+            print ('\n'+str(d_GEF['PROCEDURECODE'])+'\n')
+        else:
+            print ('\n'+str(d_GEF)+'\n')
+
+    # standaard veldwaarden bepalen
+    # Get_CompanyID_Name UtlGefOpen
+    CompanyID = UtlGefOpen.Get_CompanyID_Name(d_GEF)
+    if CompanyID == None:
+        print_log(request,"ERROR","%s CompanyID niet in orde"%(gefFile))
+        g = False
+
+    # Get_ProjectID_Number
+    ProjectID = UtlGefOpen.Get_ProjectID_Number(d_GEF).strip()
+    if ProjectID == None:
+        print_log(request,"ERROR","%s ProjectID niet in orde"%(gefFile))
+        g = False
+
+    # Get_XYID_X
+    X = UtlGefOpen.Get_XYID_X(d_GEF)
+    if not X == None:
+        X = float(UtlGefOpen.Get_XYID_X(d_GEF))
+        if X < 100000 or X > 200000:
+            print_log(request,"ERROR","%s X-coordinaat buiten gebied"%(X))
+            g = False
+    else:
+        print_log(request, "ERROR", "%s X-coordinaat niet gevonden"%(gefFile))
+        g = False
+
+    # Get_XYID_Y
+    Y = UtlGefOpen.Get_XYID_Y(d_GEF)
+    if not Y == None:
+        Y = float(UtlGefOpen.Get_XYID_Y(d_GEF))
+        if Y < 400000 or Y > 600000:
+            print(str(Y)+' Y-coordinaat buiten gebied')
+            g = False
+    else:
+        print_log(request, "ERROR", "%s Y-coordinaat niet gevonden"%(gefFile))
+        g = False
+
+    # Get_ZID_Z
+    Z = UtlGefOpen.Get_ZID_Z(d_GEF)
+    if not Z == None:
+        Z = float(UtlGefOpen.Get_ZID_Z(d_GEF))
+        if Z < -999 or Z > 999:
+            print_log(request, "ERROR","%s Z-waarde out of range"%(Z))
+            g = False
+    else:
+        print_log(request, "ERROR", "%s Z-waarde niet gevonden"%(gefFile))
+        g = False
+
+    # StartDatum
+    StartDatum = UtlGefOpen.Get_StartDate_AsText_ISO(d_GEF) #gef.Get_StartDate_AsText_Local(d_GEF)
+    print (StartDatum)
+    if StartDatum == None:
+        print_log(request, "ERROR", "%s StartDatum niet orde"%(gefFile))
+        g = False
+    Hyperlink_root = Get_hyperlink_root(request)
+
+    # Bepaal ReportType voor Test4 en Test5 IsbestandCorrect
+    if SoortGef == 'boring': 
+        ReportType = 'GEF-BOREHOLE-Report'
+    elif SoortGef == 'peilbuisput':
+        ReportType = 'GEF-BORE-Report'
+    elif SoortGef == 'sondering':
+        ReportType = 'GEF-CPT-Report'
+    else:
+        g = False # maar dat weten we inmiddels al...
+        ReportType = None
+    # Stop resultaten in dict
+    d = {}
+    d['User'] = User
+    d['UserId'] = UserId
+    d['gefFile'] = gefFile
+    d['gefFileNaam'] = gefFileNaam
+    d['CompanyID'] = CompanyID
+    d['ProjectID'] = ProjectID
+    d['StartDatum'] = StartDatum
+    d['SoortGef'] = SoortGef
+    d['Hyperlink_root'] = Hyperlink_root
+    d['ReportType'] = ReportType
+    d['X'] = X
+    d['Y'] = Y
+    d['Z'] = Z
+    d['g'] = g
+    return d
+
+    # except IOError:
+    #     print ("IOError")
+    #     print (gefFile)
+    #     return None
+    # except TypeError:
+    #     print ("TypeError")
+    #     return None
+    # except:
+    #     print_log(request, "ERROR", "%s: Een onverwachte fout heeft zich voorgedaan in gef_standaard"%(gefFile))
+    #     return None
+
+#########################################################################################################
+################################## deel B: spefifiek programma ##########################################
+#########################################################################################################
+
+def gef_boring(request,d,d_GEF):
+    # voor specifieke boring-attributen
+    DatumBoring = UtlGefOpen.Get_BOR_DatumBoring(d_GEF) # '01/31/15
+    d['DATUM_BORING'] = Convert_Date(DatumBoring) # DateField = 'YYYY-MM-DD' ipv 'MM/DD/YY'
+    d['METHODE_BORING'] = UtlGefOpen.Get_BOR_MethodeBoring(d_GEF)
+    d['EINDDIEPTE'] = UtlGefOpen.Get_BOR_EindDiepte(d_GEF)
+    return d
+
+def gef_sondering(request,d,d_GEF):
+    # voor specifieke sondering-attributen
+    d['BESTAND_SONDERING'] = d['gefFileNaam'] # bestandsnaam
+    d['DATUM_SONDERING'] = UtlGef.Get_SON_DatumSondering()
+    d['METHODE_SONDERING'] = UtlGef.Get_SON_MethodeSondering()
+    d['EINDDIEPTE_TYPE'] = UtlGef.Get_SON_EindDiepteGegevens()[0]
+    d['EINDDIEPTE'] = UtlGef.Get_SON_EindDiepteGegevens()[1]
+    return d
+
+def gef_peilbuisput(request,d,d_GEF):
+    gefFile = d['gefFile']
+    # voor specifieke peilbuisput-attributen
+    # sPeilbuisputID = sFORMATSTRING % iMaxID, b.k.note: is dit nodig om zelf hier te bepalen of leiden we ID gewoon af na het invoeren?
+    # BESTAND_PEILBUISPUT = sGefBestand # bestandsnaam, b.k.note: bestandsnaam weten we al.
+    BESTAND_PARENT = UtlGefOpen.Get_PBP_BestandParent(d_GEF)
+    BORING_ID = Get_BoringID(BESTAND_PARENT)
+    print("BORING_ID = %s"%BORING_ID)
+    if not BORING_ID == None:
+        BORING_ID = int(BORING_ID)
+    PROJECTNUMMER = UtlGefOpen.Get_ALG_ProjectNummer(d_GEF)
+    DATUM_PLAATSING = UtlGefOpen.Get_PBP_DatumPlaatsing(d_GEF)
+    AANTAL_PEILBUIZEN = UtlGefOpen.Get_PBP_AantalPeilbuizen(d_GEF)
+    print(PROJECTNUMMER,DATUM_PLAATSING,AANTAL_PEILBUIZEN)
+    # Vul de bijbehorende peilbuisgegevens
+    # VulTblPb(i_oGp, i_sPadTargetTblPb, sPeilbuisputID, i_sPadTargetTblFt)
+    # iCountPunten += 1
+    if BESTAND_PARENT == None or BORING_ID == None:
+        print ("geen parent gevonden")
+        print_log(request, "ERROR", '%s Parent (boring) niet gevonden!'%(gefFile))
+        d['g'] = False
+
+    d['BESTAND_PARENT'] = BESTAND_PARENT
+    d['BORING_ID'] = BORING_ID
+    d['DATUM_PLAATSING'] = DATUM_PLAATSING
+    d['AANTAL_PEILBUIZEN'] = AANTAL_PEILBUIZEN
+    d['PROJECTNUMMER'] = PROJECTNUMMER
+    return d
+
+    # Print ('\nTotaal aantal GEF bestanden in folder : %6i' % len(oListGefBestanden))
+    # Print ('Aantal peilbuisput locaties toegevoegd: %6i' % iCountPunten)
+    # Print ('- met daarin aantal peilbuizen        : %6i' % iCountPb)
+    # Print ('- met daarin aantal filters           : %6i' % iCountFt)
+
+def gef_peilbuis(request,d,d_GEF):
+    iAantalPeilbuizen = d['AANTAL_PEILBUIZEN']
+    for k in range(1, iAantalPeilbuizen + 1):
+        # zelf verzonnen unieke code voor PEILBUISIDENT
+        PEILBUISIDENT = d['gefFileNaam'][:-4] + "_Peilbuis" + str(UtlGefOpen.Get_PBP_Peilbuis_Code(d_GEF,k))
+        BOVENKANT_PEILBUIS = UtlGefOpen.Get_PBP_Peilbuis_Bovenkant(d_GEF,k)
+        LENGTE_PEILBUIS = UtlGefOpen.Get_PBP_Peilbuis_LengtePeilbuis(d_GEF,k)
+        LENGTE_ZANDVANG = UtlGefOpen.Get_PBP_Peilbuis_LengteZandvang(d_GEF,k)
+        AANTAL_FILTERS = UtlGefOpen.Get_PBP_Peilbuis_AantalFilters(d_GEF,k)
+        #filtergegevens
+        i_iFilterNr = 1 # altijd 1 filter
+        BOVENKANT_FILTER = UtlGefOpen.Get_PBP_Filter_Bovenkant(d_GEF, k, i_iFilterNr)
+        ONDERKANT_FILTER = UtlGefOpen.Get_PBP_Filter_Onderkant(d_GEF, k, i_iFilterNr)
+        LENGTE_FILTER = UtlGefOpen.Get_PBP_Filter_LengteFilter(d_GEF, k, i_iFilterNr)
+        # FILTER_ID = sFilterID # komt straks bij het opslaan aan bod
+        # PEILBUIS_ID = i_sPeilbuisID
+        d['PEILBUISIDENT'+str(k)] = PEILBUISIDENT
+        d['BOVENKANT_PEILBUIS'+str(k)] = BOVENKANT_PEILBUIS 
+        d['LENGTE_PEILBUIS'+str(k)] = LENGTE_PEILBUIS
+        d['LENGTE_ZANDVANG'+str(k)] = LENGTE_ZANDVANG
+        d['AANTAL_FILTERS'+str(k)] = AANTAL_FILTERS
+        #filtergegevens
+        d['BOVENKANT_FILTER'+str(k)] = BOVENKANT_FILTER         
+        d['ONDERKANT_FILTER'+str(k)] = ONDERKANT_FILTER
+        d['LENGTE_FILTER'+str(k)] = LENGTE_FILTER
+    return d
+
+def save_boring(request, d, d_GEF):
+    # try:
+    gefFileNaam = d['gefFileNaam']
+    gefFile = d['gefFile']
+    CompanyID = d['CompanyID']
+    ProjectID = d['ProjectID']
+    StartDatum = d['StartDatum']
+    SoortGef = d['SoortGef']
+    Hyperlink_root = d['Hyperlink_root']
+    PointGeom = d['PointGeom']
+    User = d['User']
+    X = d['X']
+    Y = d['Y']
+    Z = d['Z']
+    g = d['g']
+    # boring specifiek
+    DATUM_BORING = d['DATUM_BORING']
+    METHODE_BORING = d['METHODE_BORING']
+    EINDDIEPTE = d['EINDDIEPTE']
+
+    if Boring.objects.filter(bestand_gef=gefFileNaam).exists():
+        # update row
+        print ("Boring %s updaten..."%(gefFileNaam))
+        b = Boring.objects.get(bestand_gef=gefFileNaam)
+        # boring_id = # automatisch bepaald 
+        b.boringident = None
+        b.x_rd = X
+        b.y_rd = Y
+        b.mv_nap = Z
+        b.dwarspositie = None
+        b.datum_boring = DATUM_BORING
+        b.bedrijf = CompanyID
+        b.project_id = ProjectID
+        b.type_boring = None
+        b.methode_boring = METHODE_BORING
+        b.einddiepte = EINDDIEPTE
+        b.bestand_boring = gefFileNaam # klopt dit??
+        b.gtlp_id = None
+        b.gdr_id = None
+        b.gaf_id = None
+        # bestand_pdf = deze komt bij save_pdf() aan bod 
+        b.bestand_gef = gefFileNaam
+        b.bestand_grondonderzoek = None
+        b.gef_file = gefFile # dit is filefield: voor het opslaan van bronbestand 
+        b.gef_file_bf = None # ??
+        b.download_gef = (Hyperlink_root+gefFileNaam)
+        # status = # automatisch ingevuld 
+        # DateCreated = # automatisch ingevuld
+        # DateMutated = # automatisch ingevuld
+        b.username = User
+        b.geometry = PointGeom
+        b.save()
+        #print_log(request, "SUCCESS", '%s: succesvol overschreven!'%gefFile) # bericht komt bij waypoint
+
+    else:
+        # insert new row
+        boring = Boring(
+        # boring_id = # automatisch bepaald 
+        boringident = None,
+        x_rd = X,
+        y_rd = Y,
+        mv_nap = Z,
+        dwarspositie = None,
+        datum_boring = DATUM_BORING,
+        bedrijf = CompanyID,
+        project_id = ProjectID,
+        type_boring = None,
+        methode_boring = METHODE_BORING,
+        einddiepte = EINDDIEPTE,
+        bestand_boring = gefFileNaam, # klopt dit??
+        gtlp_id = None, gdr_id = None, gaf_id = None, # waar zijn deze voor?
+        # bestand_pdf, = deze komt bij save_pdf() aan bod. Hier niet aankomen 
+        bestand_gef = gefFileNaam,
+        bestand_grondonderzoek = None,
+        gef_file = gefFile, # dit is filefield: voor het opslaan van bronbestand 
+        gef_file_bf = None, # ??
+        download_gef = (Hyperlink_root+gefFileNaam),
+        # status, = # automatisch ingevuld 
+        # DateCreated, = # automatisch ingevuld
+        # DateMutated, = # automatisch ingevuld
+        username = User,
+        geometry = PointGeom
+        ) 
+        #gef_file_bf=open('/var/www/'+str(gefFile)), Exception Value: can't escape file to binary
+        boring.save()
+    # except:
+    #     print_log(request, "ERROR", '%s: onverwachte fout bij opslaan boring!'%(gefFileNaam))
+
+def save_sondering(request, d, d_GEF):
+    # Sondering
+    # try:
+    gefFileNaam = d['gefFileNaam']
+    gefFile = d['gefFile']
+    CompanyID = d['CompanyID']
+    ProjectID = d['ProjectID']
+    StartDatum = d['StartDatum']
+    SoortGef = d['SoortGef']
+    Hyperlink_root = d['Hyperlink_root']
+    PointGeom = d['PointGeom']
+    User = d['User']
+    X = d['X']
+    Y = d['Y']
+    Z = d['Z']
+    g = d['g']
+    if Sondering.objects.filter(bestand_gef=gefFileNaam).exists():
+        print ("Sondering %s bestaat al"%(gefFileNaam))
+        s = Sondering.objects.get(bestand_gef=gefFileNaam)
+        s.bestand_gef=gefFileNaam
+        s.download_gef=(Hyperlink_root+gefFileNaam)
+        s.bedrijf=CompanyID
+        s.project_id=ProjectID
+        s.datum_sondering=StartDatum
+        s.username=User
+        s.x_rd=X
+        s.y_rd=Y
+        s.mv_nap=Z
+        s.gef_file=gefFile
+        s.geometry=PointGeom
+        s.save()
+        #print_log(request, "SUCCESS", '%s: succesvol overschreven!'%gefFile) # bericht komt bij waypoint
+    else: # object bestaat nog niet
+        s = Sondering(bestand_gef=gefFileNaam, download_gef=(Hyperlink_root+gefFileNaam), bedrijf=CompanyID, project_id=ProjectID,
+                    datum_sondering=StartDatum, username=User, x_rd=X, y_rd=Y, mv_nap=Z, gef_file=gefFile, geometry=PointGeom)
+        s.save()
+    # except:
+    #     print_log(request, "ERROR", '%s: onverwachte fout bij opslaan sondering!'%gefFile)
+
+def save_peilbuisput(request, d, d_GEF):
+    # Peilbuisput
+    # try:
+    gefFileNaam = d['gefFileNaam']
+    gefFile = d['gefFile']
+    CompanyID = d['CompanyID']
+    ProjectID = d['ProjectID']
+    StartDatum = d['StartDatum']
+    SoortGef = d['SoortGef']
+    Hyperlink_root = d['Hyperlink_root']
+    PointGeom = d['PointGeom']
+    User = d['User']
+    X = d['X']
+    Y = d['Y']
+    Z = d['Z']
+    g = d['g']
+    # Peilbuisput specifiek
+    BESTAND_PARENT = d['BESTAND_PARENT']
+    BORING_ID = d['BORING_ID']
+    DATUM_PLAATSING = d['DATUM_PLAATSING']
+    AANTAL_PEILBUIZEN = d['AANTAL_PEILBUIZEN']
+    PROJECTNUMMER = d['PROJECTNUMMER']
+    
+    # print (Peilbuisput.objects.get(bestand_gef=gefFileNaam))
+    if Peilbuisput.objects.filter(bestand_gef=gefFileNaam).exists() and g == True:
+        # update row
+        print ("Peilbuisput %s bestaat al"%(gefFileNaam))
+        p = Peilbuisput.objects.get(bestand_gef=gefFileNaam)
+        print (p)
+        p.status = "test"
+        p.boreholeident = None
+        p.boring_id_id = BORING_ID
+        p.peilbuisraai_id   = None
+        p.x_rd = X
+        p.y_rd = Y
+        p.mv_nap = Z
+        p.dwarspositie = None
+        p.datum_plaatsing   = StartDatum #DATUM_PLAATSING moet nog omgezet worden naar 'yymmdd'
+        p.aanwezig = None
+        p.datum_verwijdering = None
+        p.bedrijf   = CompanyID
+        p.project_id = ProjectID
+        p.type_peilbuisput = None
+        p.aantal_peilbuizen = AANTAL_PEILBUIZEN
+        p.bestand_peilbuisput   = None
+        p.bestand_parent = BESTAND_PARENT
+        p.gtlp_id = None
+        p.bestand_gef = gefFileNaam
+        p.bestand_grondonderzoek = None
+        p.gef_file = gefFile
+        p.download_gef = (Hyperlink_root+gefFileNaam)
+        # p.status = # automatisch ingevuld 
+        # p.DateCreated = # automatisch ingevuld
+        # p.DateMutated = # automatisch ingevuld
+        p.username = User
+        p.geometry = PointGeom
+        p.save()
+        #print_log(request, "SUCCESS", '%s: succesvol overschreven!'%gefFile) # bericht komt bij waypoint
+    else:
+        # insert new row
+        p = Peilbuisput(
+        boreholeident = None,
+        boring_id_id = BORING_ID,
+        peilbuisraai_id = None,
+        x_rd = X,
+        y_rd = Y,
+        mv_nap = Z,
+        dwarspositie = None,
+        datum_plaatsing = StartDatum, #DATUM_PLAATSING moet nog omgezet worden naar 'yymmdd'
+        aanwezig = None,
+        datum_verwijdering = None,
+        bedrijf = CompanyID,
+        project_id = ProjectID,
+        type_peilbuisput = None,
+        aantal_peilbuizen = AANTAL_PEILBUIZEN,
+        bestand_peilbuisput = None,
+        bestand_parent = BESTAND_PARENT,
+        gtlp_id = None,
+        bestand_gef = gefFileNaam,
+        bestand_grondonderzoek = None,
+        gef_file = gefFile,
+        download_gef = (Hyperlink_root+gefFileNaam),
+        # status = # automatisch ingevuld 
+        # DateCreated = # automatisch ingevuld
+        # DateMutated = # automatisch ingevuld
+        username = User,
+        geometry = PointGeom
+        )
+        p.save()
+    # except:
+    #     print_log(request, "ERROR", '%s: onverwachte fout bij opslaan peilbuisput!'%gefFile)
+
+def save_peilbuis(request,d,d_GEF):
+    BESTAND_PARENT = d['gefFileNaam']
+    gefFileNaam = BESTAND_PARENT
+    iAantalPeilbuizen = d['AANTAL_PEILBUIZEN']
+    User = d['User']
+    PointGeom = d['PointGeom']
+    ProjectID = d['ProjectID']
+    # Get peilbuisputID
+    PeilbuisputID = Get_PeilbuisputID(BESTAND_PARENT)
+    if PeilbuisputID == None:
+        print_log(request, "ERROR", '%s: Parent (Peilbuisput) niet gevonden!'%(BESTAND_PARENT))
+    else:
+        print ("PeilbuisputID = %s: "%(PeilbuisputID))
+        PeilbuisputID = int(PeilbuisputID)
+        # moet hier per se een instance van maken, gewoon ID als integer is niet voldoende
+        PeilbuisputID = Peilbuisput.objects.get(id=PeilbuisputID)
+        print (PeilbuisputID)
+        for k in range(1, iAantalPeilbuizen + 1):
+            PEILBUISIDENT = d['PEILBUISIDENT'+str(k)]
+            BOVENKANT_PEILBUIS = d['BOVENKANT_PEILBUIS'+str(k)]
+            LENGTE_PEILBUIS = d['LENGTE_PEILBUIS'+str(k)]
+            LENGTE_ZANDVANG = d['LENGTE_ZANDVANG'+str(k)]
+            AANTAL_FILTERS = d['AANTAL_FILTERS'+str(k)]
+            #filtergegevens
+            BOVENKANT_FILTER = d['BOVENKANT_FILTER'+str(k)]         
+            ONDERKANT_FILTER = d['ONDERKANT_FILTER'+str(k)]
+            LENGTE_FILTER = d['LENGTE_FILTER'+str(k)]
+            
+            if Peilbuisgegevens.objects.filter(peilbuisident=PEILBUISIDENT).exists():
+                # update row
+                print ("Peilbuis %s overschrijven..."%PEILBUISIDENT)
+                p = Peilbuisgegevens.objects.get(peilbuisident=PEILBUISIDENT)
+                # peilbuis_id = automatisch aangemaakt
+                p.peilbuisident = PEILBUISIDENT
+                p.borehole_id = PeilbuisputID
+                p.project_id = ProjectID
+                p.bovenkant_peilbuis = BOVENKANT_PEILBUIS
+                p.lengte_peilbuis = LENGTE_PEILBUIS
+                p.lengte_zandvang = LENGTE_ZANDVANG
+                p.binnendiameter_mm = None # ???
+                p.bovenkant_filter = BOVENKANT_FILTER
+                p.onderkant_filter = ONDERKANT_FILTER
+                p.lengte_filter = LENGTE_FILTER
+                p.aantal_filters = AANTAL_FILTERS
+                p.bestand_meetreeks = BESTAND_PARENT # klopt dit?
+                # status = # automatisch ingevuld 
+                # DateCreated = # automatisch ingevuld
+                # DateMutated = # automatisch ingevuld
+                p.username = User
+                p.geometry = PointGeom
+                p.save()
+                print_log(request, "SUCCESS", '%s: peilbuis %s succesvol overschreven!'%(gefFileNaam,PEILBUISIDENT))
+            else:
+                p = Peilbuisgegevens(    
+                # peilbuis_id = automatisch aangemaakt
+                peilbuisident = PEILBUISIDENT,
+                borehole_id = PeilbuisputID,
+                project_id = ProjectID,
+                bovenkant_peilbuis = BOVENKANT_PEILBUIS,
+                lengte_peilbuis = LENGTE_PEILBUIS,
+                lengte_zandvang = LENGTE_ZANDVANG,
+                binnendiameter_mm = None, # ???
+                bovenkant_filter = BOVENKANT_FILTER,
+                onderkant_filter = ONDERKANT_FILTER,
+                lengte_filter = LENGTE_FILTER,
+                aantal_filters = AANTAL_FILTERS,
+                bestand_meetreeks = BESTAND_PARENT, # klopt dit?
+                # status = # automatisch ingevuld 
+                # DateCreated = # automatisch ingevuld
+                # DateMutated = # automatisch ingevuld
+                username = User,
+                geometry = PointGeom
+                )
+                p.save()
+                print_log(request, "SUCCESS", '%s: peilbuis %s succesvol opgeslagen!'%(gefFileNaam,PEILBUISIDENT))
+
+def save_waypoint(request, d):
+    # try:
+    # Waypoint
+    User = d['User']
+    gefFile = d['gefFile']
+    gefFileNaam = d['gefFileNaam']
+    CompanyID = d['CompanyID']
+    ProjectID = d['ProjectID']
+    StartDatum = d['StartDatum']
+    SoortGef = d['SoortGef']
+    Hyperlink_root = d['Hyperlink_root']
+    PointGeom = d['PointGeom']
+    X = d['X']
+    Y = d['Y']
+    Z = d['Z']
+    # Check of waypoint al bestaat
+    if Waypoint.objects.filter(name=gefFileNaam).exists():
+        print ("Waypoint %s bestaat al"%(gefFileNaam))
+        w = Waypoint.objects.get(name=gefFileNaam)
+        w.name=gefFileNaam
+        w.download_gef=(Hyperlink_root+gefFileNaam)
+        w.company=CompanyID
+        w.projectid=ProjectID
+        w.startdatum=StartDatum
+        w.username=User
+        w.soortgef=SoortGef
+        w.x=X
+        w.y=Y
+        w.z=Z
+        w.geometry=PointGeom
+        w.save()
+        print_log(request, "SUCCESS", '%s: succesvol overschreven!'%gefFile)
+    # Waypoint bestaat nog niet. nieuw object opslaan
+    else:
+        waypoint = Waypoint(name=gefFileNaam, download_gef=(Hyperlink_root+gefFileNaam), company=CompanyID, projectid=ProjectID,
+            startdatum=StartDatum, username=User, soortgef=SoortGef, x=X, y=Y, z=Z, geometry=PointGeom)
+        waypoint.save()
+        print_log(request, "SUCCESS", '%s: upload succesvol!'%(gefFileNaam))
+
+    # except:
+    #     print_log(request, "ERROR", '%s: onverwachte fout bij opslaan waypoint!'%(gefFileNaam))
+
+
+def save_project(request, d):
+    ProjectID = d['ProjectID'] 
+    UserId = d['UserId']
+    # Projecten
+    # optie 1) project hoort altijd bij 1 gebruiker
+    # check of project al bestaat onder andere gebruiker
+    if Projecten.objects.filter(project_name = ProjectID).exists() and not Projecten.objects.filter(project_name = ProjectID, user_id_id = UserId).exists():
+        print_log(request, "ERROR", 'Project: %s al in gebruik door andere gebruiker'%ProjectID)
+        d['g'] = False
+    # check of project al bestaat voor huidige gebruiker
+    if not Projecten.objects.filter(project_name = ProjectID).exists():
+        print ("save new project with %s %s "%(ProjectID,UserId))
+        project = Projecten(project_name=ProjectID, user_id_id=UserId, username=request.user.username)
+        project.save()
+    return d
+    # optie 2) gedeeld projecten: kan verschillende gebruikers hebben. geen constraint
+    ## if Projecten.objects.filter(project_name = ProjectID, user_id_id = UserId).exists() == False and g == True:  #if Projecten.objects.get(id=files_id)
+
+
+##############################################################################################
+################ deel C: nevenfuncties met korte checks en Get-functies ######################
+##############################################################################################
+
+def Get_PointGeom(d):
+    if d['g']:
+        X = d['X']
+        Y = d['Y']
+        Z = d['Z']
+        wkt = 'POINT(%f %f)'%(X,Y) # z niet ondersteund in geometry kennelijk...
+        oPoint = OGRGeometry(wkt, SpatialReference('EPSG:28992'))
+        oPoint.transform_to(SpatialReference('WGS84')) # transform van RD_NEW naar WGS84
+        PointGeom = oPoint.wkt
+        return PointGeom
+    else:
+        return None
+       
+
+def Get_hyperlink_root(request):
+    try:
+        # Site URL for hyperlinkfield
+        SiteURL = request.build_absolute_uri()[:-len(request.get_full_path())] # global in views.index werkt niet...
+        if SiteURL[-5:] == ":8000": # testomgeving
+            Hyperlink_root = SiteURL + '/media/'
+        else: # productieomgeving
+            Hyperlink_root = SiteURL + '/static/gefupload/media/'
+        return Hyperlink_root
+    except:
+        return None
+
+# -----------------------------------------------------------------------------
+# Purpose: Haal uit fc BORING het ID dat hoort bij de opgegeven parent-
+#          bestandsnaam
+# -----------------------------------------------------------------------------
+def Get_BoringID(BESTAND_PARENT):
+	# Maximale afstand tussen peilbuisput en parent-boring
+	fMAX_AFSTAND = 10.0
+	sResult = None
+	iCount = 0
+	print ("zoekt "+str(BESTAND_PARENT)+" in Boringen.bestand_gef")
+	q = Boring.objects.all().filter(bestand_gef = BESTAND_PARENT)
+	if len(q)>0:
+		print ("%i boringen gevonden met %s"%(len(q),BESTAND_PARENT))
+		q = q[0]
+		sResult = q.id
+	return sResult
+
+def Get_PeilbuisputID(BESTAND_PARENT):
+    sResult = None
+    print ("zoekt "+str(BESTAND_PARENT)+" in Peilbuisput.bestand_gef")
+    q = Peilbuisput.objects.all().filter(bestand_gef = BESTAND_PARENT)
+    if len(q)>0:
+        print ("%i peilbuisputten gevonden met %s"%(len(q),BESTAND_PARENT))
+        q = q[0]
+        sResult = q.id
+    return sResult
+
+# Paul L. checks
+def IsCorrectBestand(request, d, d_GEF, Test1, Test2, Test3, Test4, Test5):
+    gefFile = d['gefFile']
+    ReportType = d['ReportType']
+    bIsOK = True
+    if Test1: # Of bestand basisinfo bevat om te plotten
+        if not UtlGefOpen.Is_Plotable(d_GEF):
+            print_log(request, "ERROR", '%s: kan niet worden geplot.'%gefFile)
+            return False
+    if Test2: # Of data block consistent met header
+        if not UtlGefOpen.Test_Gef(d_GEF):
+            print_log(request, "ERROR", '%s: heeft inconsistent data block.'%gefFile)
+            return False
+    if Test3: # Of header (alle keywords) correct
+        if not UtlGefOpen.Test_Gef(d_GEF):
+            print_log(request, "ERROR", '%s: heeft incorrecte header.'%gefFile)
+            return False
+    if Test4: # Of herkend als BORHOLE/BORE/CPT bestand
+        if not UtlGefOpen.Get_ReportType_Flag(ReportType):
+            print_log(request, "ERROR", '%s: niet herkend als %s.'%(gefFile,ReportType))
+            return False
+    if Test5: # Of beschreven als BORHOLE/BORE/CPT bestand
+        if not UtlGefOpen.Get_ReportType_Flag(ReportType):
+            print_log(request, "ERROR", '%s: niet beschreven als %s.'%(gefFile,ReportType))
+            return False
+    return bIsOK
+
+# Bart TestGefData r227 tm r234
+def Get_SoortGef(headerdict):
+    if  UtlGefOpen.Gbr_Is_Gbr(headerdict):
+        SoortGef='boring' 
+    elif UtlGefOpen.Gcr_Is_Gcr(headerdict): 
+        SoortGef='sondering' 
+    elif UtlGefOpen.Brh_Is_Brh(headerdict):
+        SoortGef='peilbuisput'
+    else: 
+        SoortGef='onbekend'
+    try:
+        return SoortGef
+    except: 
+        return None
+
+# Bart TestGefData r255 tm 289
+def testXYbinnenBereik(headerdict):
+    try:
+        X = Get_XYID_X(headerdict)
+        if X is None:
+            return 'X-waarde niet gevonden'
+        elif X < 100000 or X > 200000:
+            return 'X-coordinaat buiten gebied'
+        Y = Get_XYID_Y(headerdict)
+        if Y is None:
+            return 'Y-waarde niet gevonden'
+        elif Y < 400000 or Y > 600000:
+            return 'Y-coordinaat buiten gebied'
+        Z = Get_XYID_Y(headerdict)
+        if Z is None:
+            return 'Z-waarde niet gevonden'
+        elif Z < -999 or Z > 999:
+            return 'Z-waarde out of range'
+    except:
+        return None
+
+# Bart testGefData r291 tm r295 
+def Convert_Date(date):  # '01/31/15'
+    try:
+        # omdraaien voor DateField YYYY-MM-DD ipv 'MM/DD/YY'
+        datum = '20'+date[6:8]+'-'+date[0:2]+'-'+date[3:5] # '2015-01-31'
+        return datum
+    except:
+        return None
+
+
+##############################################################################################
+############################### overige functies #############################################
+##############################################################################################
+
+def pdf_check(request, pdfFile):
+    #blaat
+    Result = False
+    BESTAND_PARENT = str(pdfFile)
+    print ("zoekt "+str(BESTAND_PARENT)+" in Boringen.bestand_gef")
+    q = Boring.objects.all().filter(bestand_gef = BESTAND_PARENT[:-4]+".gef") # moet worden bestand_pdf
+    if len(q)>0:
+        print ("%i pdf gevonden in %s"%(len(q),BESTAND_PARENT))
+        q = q[0]
+        Result = True
+    return Result
+
+# bijwerken van aantal objecten per project en add_message met aantal nieuwe projecten en objecten
+def ProjectUpdate(request,d_prj_oud):
+    '''Updaten van projectgegevens in projectentabel en printen naar het portaal'''
+    # bijwerken projecten overzicht
+    d_prj_nieuw = ProjectCount(request)
+    for project in d_prj_nieuw:
+        p = Projecten.objects.get(project_name = project)
+        p.aantal_boringen = d_prj_nieuw[project][0]
+        p.aantal_peilbuisputten = d_prj_nieuw[project][1]
+        p.aantal_sonderingen = d_prj_nieuw[project][2]
+        p.save()   
+        del p
+    
+    # tel hoeveel nieuwe projecten er zijn bijgekomen
+    i_prj_bijgewerkt = len(d_prj_nieuw)-len(d_prj_oud)
+    if i_prj_bijgewerkt == 0:
+        print_log(request, "INFO", '\nGeen nieuwe projecten toegevoegd!')
+    elif i_prj_bijgewerkt == 1:
+        print_log(request, "INFO", '\n1 nieuw project toegevoegd:')
+    else:
+        print_log(request, "INFO", '\n%i nieuwe projecten toegevoegd:'%i_prj_bijgewerkt)
+    
+    # bepaal welke projecten zijn bijgewerkt in d_prj_bijgewerkt
+    i_prj_bijgewerkt=0
+    d_prj_bijgewerkt = {}
+    for project in d_prj_nieuw: 
+        if project in d_prj_oud: # bijgewerkte projecten
+            i_bor_oud, i_pbp_oud, i_son_oud = d_prj_oud[project]
+            i_bor_nieuw, i_pbp_nieuw, i_son_nieuw = d_prj_nieuw[project]
+            i_bor_bijgewerkt = i_bor_nieuw - i_bor_oud
+            i_pbp_bijgewerkt = i_pbp_nieuw - i_pbp_oud
+            i_son_bijgewerkt = i_son_nieuw - i_son_oud
+            d_prj_bijgewerkt[project] = [i_bor_bijgewerkt,i_pbp_bijgewerkt,i_son_bijgewerkt]
+            if i_bor_bijgewerkt != 0 or i_pbp_bijgewerkt != 0 or i_son_bijgewerkt != 0:
+                i_prj_bijgewerkt+=1
+    
+    # print hoeveel projecten zijn bijgewerkt
+    if i_prj_bijgewerkt == 0:
+        print_log(request, "INFO", 'Geen projecten bijgewerkt!')
+    elif i_prj_bijgewerkt == 1:
+        print_log(request, "INFO", '1 project bijgewerkt:')
+    else:
+        print_log(request, "INFO", '%i projecten bijgewerkt:'%i_prj_bijgewerkt)
+
+    i_bor_nieuw_totaal=0
+    i_pbp_nieuw_totaal=0
+    i_son_nieuw_totaal=0   
+    i_bor_bijgewerkt_totaal=0
+    i_pbp_bijgewerkt_totaal=0
+    i_son_bijgewerkt_totaal=0   
+    
+    # bereken hoeveel is geupload en send messages
+    for project in d_prj_nieuw:
+        # print stats voor nieuwe projecten
+        if not project in d_prj_oud: 
+            i_bor_nieuw, i_pbp_nieuw, i_son_nieuw = d_prj_nieuw[project]
+            print_log(request, "INFO", 
+                '....nieuw: %s: %i boringen, %i peilbuisputten, %i sonderingen\
+                '%(project,i_bor_nieuw, i_pbp_nieuw, i_son_nieuw))
+            i_bor_nieuw_totaal += i_bor_nieuw
+            i_pbp_nieuw_totaal += i_pbp_nieuw
+            i_son_nieuw_totaal += i_son_nieuw
+        # print stats voor bijgewerkte projecten
+        if project in d_prj_oud: 
+            i_bor_bijgewerkt, i_pbp_bijgewerkt, i_son_bijgewerkt = d_prj_bijgewerkt[project]
+            if i_bor_bijgewerkt != 0 or i_pbp_bijgewerkt != 0 or i_son_bijgewerkt != 0:
+                print_log(request, "INFO", 
+                    '....bijgewerkt: %s: %i boringen, %i peilbuisputten, %i sonderingen\
+                    '%(project,i_bor_bijgewerkt,i_pbp_bijgewerkt,i_son_bijgewerkt))
+            i_bor_bijgewerkt_totaal += i_bor_bijgewerkt
+            i_pbp_bijgewerkt_totaal += i_pbp_bijgewerkt
+            i_son_bijgewerkt_totaal += i_son_bijgewerkt
+    i_bor_totaal = i_bor_nieuw_totaal + i_bor_bijgewerkt_totaal
+    i_pbp_totaal = i_pbp_nieuw_totaal + i_pbp_bijgewerkt_totaal
+    i_son_totaal = i_son_nieuw_totaal + i_son_bijgewerkt_totaal
+    # print totalen
+    print_log(request, "INFO", 120*"-")
+    print_log(request, "INFO", 
+                'Toegevoegd aan nieuwe projecten   : %i boringen, %i peilbuisputten, %i sonderingen\
+                '%(i_bor_nieuw_totaal,i_pbp_nieuw_totaal,i_son_nieuw_totaal))
+    print_log(request, "INFO", 
+                'Toegevoegd aan bestaande projecten: %i boringen, %i peilbuisputten, %i sonderingen\
+                '%(i_bor_bijgewerkt_totaal,i_pbp_bijgewerkt_totaal,i_son_bijgewerkt_totaal))
+    print_log(request, "INFO", 
+                'Totaal aantal toegevoegde objecten: %i boringen, %i peilbuisputten, %i sonderingen\
+                '%(i_bor_totaal,i_pbp_totaal,i_son_totaal))
+
+# geef dictionary terug met aantal objecten per project
+def ProjectCount(request):
+    d_prj = {}
+    projecten = Projecten.objects.filter(user_id_id=request.user.id).values_list('project_name', flat=True) # flat=True voor lijst met single values i.p.v. tuples
+    #print (str(projecten))
+    for project in projecten: 
+        i_boringen = Boring.objects.filter(project_id=project).count()
+        i_peilbuisputten = Peilbuisput.objects.filter(project_id=project).count()
+        i_sonderingen = Sondering.objects.filter(project_id=project).count()
+        d_prj[project] = [i_boringen,i_peilbuisputten,i_sonderingen] 
+        # print ("#boringen:\t\t%s"%i_boringen)
+        # print ("#peilbuisputten:\t%s"%i_peilbuisputten)
+        # print ("#sonderingen:\t\t%s"%i_sonderingen)
+    # print (d_prj)
+    return d_prj
+
+def send_email_gefupload():
+    # email verzenden werkt nog niet goed, traag, maar lukt soms wel.
+   html_header = '''<h1>gefupload in gebruik</h1>'''
+   subject = 'Gef upload'
+   contact_message = 'Er is een gef-file geupload op het portaal'
+   send_mail(subject,
+           contact_message,
+           settings.EMAIL_HOST_USER,
+           ['hhnk.vps@gmail.com'],
+           html_message=html_header,
+           fail_silently=False)
+   print ("email send")

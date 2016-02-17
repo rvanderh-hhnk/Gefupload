@@ -1,0 +1,14 @@
+<p id="waypointsText"><b>Soort GEF-bestand, GEF-bestandsnaam, Bedrijfsnaam, Startdatum, Username</b></p>
+{% for waypoint in waypoints %}
+	<!--  if waypoint.username == request.user.username or waypoint.username == 'AnonymousUser' and not request.user.is_authenticated  -->
+	{% if ActiveProject == waypoint.projectid %}
+	  	<div id={{waypoint.id}} class='waypoint linkOFF'>
+			{{waypoint.soortgef}},
+			{{waypoint.name}}, 
+			{{waypoint.company}}, 
+			{{waypoint.startdatum}},   
+			{{waypoint.username}}
+	 	</div>
+	{% endif %}
+{% endfor %}
+

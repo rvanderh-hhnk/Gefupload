@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block jumbotron %}
+<!-- Main component for a primary marketing message or call to action -->
+  <div class="jumbotron">
+    <p>Website voor het controleren en uploaden van gef-files</p>
+    <p>To see the difference between static and fixed top navbars, just scroll.</p>
+  </div>
+{% endblock %}
+
+{% if request.user.is_anonymous %}
+    {% url 'auth_login' %}
+{% else %}
+    {% block uploadForm %}
+    <div class='row'>
+        <div class='col-md-6'>  
+        	<form enctype="multipart/form-data" method="post" action="{% url 'waypoints-upload' %}">
+        	    {% csrf_token %}       
+            	    <input class='btn btn-primary' type=file multiple="multiple" name=gef>
+            	    <input class='btn btn-primary' type=submit value='Upload GEF'>
+            </form>        
+        </div>
+        <div class='col-md-6'>  
+            <button class='btn btn-primary pull-right'  onclick="initialize()">Googlemaps</button>
+            <button class='btn btn-primary pull-right'  onclick="reload_page()">Leaflet</button>
+        </div>
+    </div>
+    {% endblock %}
+
+    {% block info_messages %}
+    <!-- messages -->
+        {% if messages %}
+            <div class='row'>
+                <div class='col-md-12'>
+                    {% for message in messages %}
+                        <p{% if message.tags == "info" %} 
+                            class="info_tag"> {{ message }} 
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endblock %}
+
+    {% block content %}
+    	{% include 'index.html' %}
+    {% endblock %}
+
+    {% block buttons %}
+    <div class='row'>
+        <div class='col-md-3'>  
+            <form method='' action="{% url 'waypoints-del_project' %}">{% csrf_token %}
+                <input class='btn btn-danger btn-block' type='submit' onclick="return confirm(
+                    'Weet u zeker dat u het huidige project wilt verwijderen? Het verwijderen van een project is definitief.')" 
+                    value='verwijder huidige project'>
+            </form>
+    	</div>
+        <div class='col-md-3'>  
+            <form method='' action="{% url 'waypoints-delete' %}">{% csrf_token %}
+                <input class='btn btn-danger btn-block' type='submit' onclick="return confirm(
+                'Weet u zeker dat u al uw projecten wilt verwijderen? Het verwijderen van uw projecten is definitief.')" 
+                value='verwijder al mijn projecten'>
+            </form>
+        </div>
+        <div class='col-md-3'> <!-- col-md-offset-3 pull-right --> 
+    		{% if request.user.is_staff %}
+    			<form method='' action="{% url 'waypoints-truncate' %}">{% csrf_token %}
+        			<input class='btn btn-danger btn-block' type='submit' onclick="return confirm(
+                    'Weet u zeker dat u alle data wil verwijderen? Gegevens van andere gebruikers zullen ook definitief worden verwijderd!')"
+                    value='truncate tables'>
+    			</form>
+    		{% endif %}
+    	</div>
+        <div class='col-md-3'>  
+            <form method='' action="{% url 'waypoints-opleveren' %}">{% csrf_token %}
+                <input class='btn btn-success btn-block' type='submit' onclick="return confirm(
+                'Heeft u alle objecten gecontroleerd op juistheid? Als u dit project oplevert kunt u de gegevens achteraf niet meer wijzigen. Het proces van opleveren kan enkele minuten in beslag nemen.')" 
+                value='Opleveren project'>
+            </form>
+        </div>
+    </div>
+    <p><a href={{Upload_log}}>Download logfile</a></p>
+    {% endblock %}
+{% endif %}
+
+{% block messages %}
+<!-- messages -->
+    {% if messages %}
+        <div class='row'>
+            <div class='col-lg-6'>
+                {% for message in messages %}
+                    <p{% if message.tags == "success" %} 
+                        class="success_tag"> {{ message }} 
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <div class='col-lg-6'>
+                {% for message in messages %}
+                    <p{% if message.tags == "error" %} 
+                        class="error_tag"> {{ message }} 
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+
+{% block content %}
+<div class='row'>
+<div class='col-sm-6 col-sm-offset-3'>
+<h1>Registreer</h1>
+<form method="post" action=".">
+  {% csrf_token %}
+  {{ form|crispy }}
+
+  <input class='btn btn-block btn-primary' type="submit" value="{% trans 'Registreren' %}" />
+</form>
+</div>
+</div>
+
+<hr/>
+<div class='row'>
+<div class='col-sm-6 col-sm-offset-3 text-align-center'>
+<p style="color:red">Let op! het kan enkele minuten duren voor u weer verder kunt. (max. 5 minuten)</p>
+<br/>
+<p>Klik om <a href="{% url 'auth_login' %}">in te loggen</a></p>
+</div>
+</div>
+
+
+{% endblock %}

@@ -1,0 +1,41 @@
+<!-- googlemaps javascripts -->
+<script src="http://maps.google.com/maps/api/js?sensor=false"></script>
+<script src="http://code.jquery.com/jquery-1.4.4.min.js"></script>
+<!-- googlemaps javascripts -->
+
+
+<script>
+// script Googlemaps app -------------------------------------------------------------------------------------------
+var projectByName = {};
+var currentObject;
+
+{% for project in projecten %}
+    projectByName[{{project.project_name}}] = {
+    name: "{{project.project_name}}",
+    status: "{{project.project_status}}"
+};
+{% endfor %}
+
+$(document).ready(function () {
+
+    function activateProjects() {
+        // Add project click handler
+        $('.project').each(function () {
+            $(this).click(function() {
+                var project = projectByName[this.project_name];
+                currentObject = $(this);
+                // hier iets doen ?  
+
+            }).hover(
+                function () {this.className = this.className.replace('OFF', 'ON');},
+                function () {this.className = this.className.replace('ON', 'OFF');}
+            );
+        });
+    }
+    activateProjects();
+
+});
+
+</script>
+
+

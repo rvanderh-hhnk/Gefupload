@@ -1,0 +1,16 @@
+
+<!-- <div id=gmap></div> #gmap wordt nu weergegeven met "map" via button -->
+
+<h4>{{ActiveProjectInfo}}</h4>
+<div id="map"></div>
+   
+	{% include 'js_leaflet.html' %}
+    {% include 'js_gmaps.html' %}
+    {% include 'js_projecten.html' %} 
+
+<div id=waypoints>
+    {% include 'waypoints.html' %}
+</div>
+   
+<!-- http://getbootstrap.com/components/#alerts -->
+

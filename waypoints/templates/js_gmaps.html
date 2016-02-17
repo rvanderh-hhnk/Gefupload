@@ -1,0 +1,86 @@
+<!-- googlemaps javascripts -->
+<script src="http://maps.google.com/maps/api/js?sensor=false"></script>
+<script src="http://code.jquery.com/jquery-1.4.4.min.js"></script>
+<!-- googlemaps javascripts -->
+
+<script type="text/javascript">
+var div = document.getElementById("waypointsText");
+div.textContent = "my text";
+var text = div.textContent;
+</script>
+
+<script>
+// script Googlemaps app -------------------------------------------------------------------------------------------
+var gmap, marker, waypointByID = {};
+var currentObject;
+var geocoder;
+
+function initialize() {
+    gmap = new google.maps.Map(document.getElementById("map"), {
+        zoom: 8,
+        center: new google.maps.LatLng(52.6767323, 4.865127), 
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+    });
+    geocoder = new google.maps.Geocoder();
+}
+
+{% for waypoint in waypoints %}
+    waypointByID[{{waypoint.id}}] = {
+    name: "{{waypoint.name}}",
+    company: "{{waypoint.company}}",
+    projectid: "{{waypoint.projectid}}",
+    lat: {{waypoint.geometry.y}},
+    lng: {{waypoint.geometry.x}}
+};
+{% endfor %}
+
+$(document).ready(function () {
+
+    function activateWaypoints() {
+        // Add waypoint click handler
+        $('.waypoint').each(function () {
+            $(this).click(function() {
+                var waypoint = waypointByID[this.id];
+                var center = new google.maps.LatLng(waypoint.lat, waypoint.lng);
+                currentObject = $(this);
+                if (marker) marker.setMap(); //verwijderen van oude marker
+                marker = new google.maps.Marker({map: gmap, position: center, draggable: true});
+                // leaflet markers
+                //map.removeLayer(lmarker);
+                var lmarker;
+                if (lmarker) lmarker.setMap();
+                lmarker = new L.marker([waypoint.lat, waypoint.lng]);
+                map.addLayer(lmarker);  //L.marker([waypoint.lat, waypoint.lng]).addTo(map);
+                lmarker.bindPopup("<b>"+waypoint.name+"</b><br />"+waypoint.company).openPopup();
+                // infowindow toevoegen
+                var infowindow = new google.maps.InfoWindow({
+                    content: '<p>GEF file: ' + waypoint.name + 
+                            '<br>Bedrijf: &nbsp &nbsp' + waypoint.company + '</p>'
+                });
+                // click listener toevoegen om InfoWindow op te roepen met klik
+                google.maps.event.addListener(marker, 'click', function() {
+                    infowindow.open(gmap, marker);
+                });
+                
+                google.maps.event.addListener(marker, 'dragend', function() {
+                    var position = marker.getPosition();
+                    waypoint.lat = position.lat();
+                    waypoint.lng = position.lng();
+                    currentObject.html(waypoint.name +
+                        ' (' + waypoint.lat +
+                        ', ' + waypoint.lng + ')');  
+                });
+                gmap.panTo(center);
+            }).hover(
+                function () {this.className = this.className.replace('OFF', 'ON');},
+                function () {this.className = this.className.replace('ON', 'OFF');}
+            );
+        });
+    }
+    
+    activateWaypoints();
+
+});
+
+</script>
+

@@ -1,0 +1,60 @@
+{% load crispy_forms_tags %}
+
+<!-- test -->
+<!-- {% block form1 %}
+<div class='row'>
+<div class='col-sm-6 col-sm-offset-3'>
+<form method='POST' action''>{% csrf_token %}
+{{ form|crispy }}
+
+<input class='btn btn-default' type='submit' value='Submit' />
+
+</form>
+</div>
+</div>
+{% endblock %}
+ -->
+
+
+
+
+<!-- MOMENTEEL NIET IN GEBUIRUIK!!!!! -->
+
+{% block truncate %}
+<!-- form truncate -->
+<form method='' action="{% url 'waypoints-truncate' %}">
+{% csrf_token %}
+<input class='btn btn-primary' type='submit' value='truncate tables'>
+</form>
+{% endblock %}
+
+{% block delete %}
+<form method='' action="{% url 'waypoints-delete' %}">
+{% csrf_token %}
+<input class='btn btn-warning' type='submit' value='verwijder gegevens'>
+</form>
+{% endblock %}
+
+{% block messages %}
+<!-- messages -->
+    {% if messages %}
+        <div class='row'>
+            <div class='col-md-6'>
+                {% for message in messages %}
+                    <p{% if message.tags == "info" %} 
+                        class="info_tag"> {{ message }} 
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <div class='col-md-6'>
+                {% for message in messages %}
+                    <p{% if message.tags == "error" %} 
+                        class="error_tag"> {{ message }} 
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+<!-- MOMENTEEL NIET IN GEBUIRUIK!!!!! -->

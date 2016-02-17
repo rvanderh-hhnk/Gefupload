@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+
+{% block content %}
+<p><a href="http://geoportaal.bkgis.nl/maps/8/view">Klik hier om naar de volledige site van het geoportaal te gaan</a></p>
+
+<iframe 
+ src="http://geoportaal.bkgis.nl/maps/8/view""
+  
+ <!-- width="100%" height="600" -->
+ sandbox>
+  <p>
+  	<a href="http://geoportaal.bkgis.nl/maps/8/view"></a>
+    <!-- <a href="http://geoportaal.bkgis.nl/maps/8/view"></a> -->
+    Fallback link for browsers that, unlikely, don't support frames
+    
+  </p>
+</iframe>
+
+<h3> Download shortcuts: </h3>
+<li><a href="http://geoportaal.bkgis.nl/geoserver/wfs?typename=geonode%3Aboring&outputFormat=excel&version=1.0.0&request=GetFeature&service=WFS">Download boringen in excel</a></li>
+<li><a href="http://geoportaal.bkgis.nl/geoserver/wfs?typename=geonode%3Apeilbuisput&outputFormat=excel&version=1.0.0&request=GetFeature&service=WFS">Download peilbuisputten in excel</a></li>
+<li><a href="http://geoportaal.bkgis.nl/geoserver/wfs?typename=geonode%3Asondering&outputFormat=excel&version=1.0.0&request=GetFeature&service=WFS">Download sonderingen in excel</a></li>
+
+
+{% endblock %}
+

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+
+{% block content %}
+<div class='row'>
+<div class='col-sm-6 col-sm-offset-3'>
+<h1 style="color:#0091D2">Contactgegevens</h1>
+</div>
+</div>
+
+<hr/>
+<div class='row'>
+<div class='col-sm-6 col-sm-offset-3 text-align-center'>
+
+<h4 style="color:#0091D2">Contactpersonen</h4>
+
+<ul>
+	<li>Contactpersoon1: 	tel. xxxx</li>
+	<li>Contactpersoon2: 	tel. xxxx</li>
+</ul>
+
+<h4 style="color:#0091D2">Postadres</h4>
+
+<ul>
+	<li>Postbus 250, 1700 AG Heerhugowaard</li>
+</ul>
+
+<h4 style="color:#0091D2">Formulier</h4>
+
+<ul>
+	<li><a href="http://www.hhnk.nl/portaal/contactinformatie_241/simform/form/step/melding-klacht-bezwaar-of-vraag">Melding, klacht, bezwaar, vraag</a>,&nbsp;dagelijks 24 uur bereikbaar</li>
+</ul>
+
+<p>&nbsp;&nbsp;&nbsp;&nbsp;</p>
+
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+
+<p><a href="{% url 'waypoints-index' %}">Ga terug naar homepage</a></p>
+</div>
+</div>
+
+
+{% endblock %}

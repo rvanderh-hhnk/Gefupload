@@ -1,0 +1,296 @@
+{% load staticfiles %}
+
+<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.css" />
+<link rel="stylesheet" href="http://k4r573n.github.io/leaflet-control-osm-geocoder/Control.OSMGeocoder.css" />	
+<!-- static css for leaflet -->
+<link rel="stylesheet" href="{% static 'css/MarkerCluster.css' %}" />
+<link rel="stylesheet" href="{% static 'css/MarkerCluster.Default.css' %}" />
+<link rel="stylesheet" href="{% static 'css/own_style.css' %}" />
+<link rel="stylesheet" href="{% static 'css/label.css' %}" />
+<!-- online js for leaflet -->
+<script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.js"></script>
+<script src="http://k4r573n.github.io/leaflet-control-osm-geocoder/Control.OSMGeocoder.js"></script>
+<!-- static js for leaflet -->
+<script src="{% static 'js/leaflet-hash.js' %}"></script>
+<script src="{% static 'js/label.js' %}"></script>
+<script src="{% static 'js/Autolinker.min.js' %}"></script>
+<script src="{% static 'js/leaflet.markercluster.js' %}"></script>
+
+<script>
+
+function reload_page() {
+    location.reload();
+}
+
+var map = L.map('map', {
+			zoomControl:true, maxZoom:19
+		}).fitBounds([[52.0704921826,4.76711438501],[52.7345165506,5.35445780634]]);
+		var hash = new L.Hash(map);
+		var feature_group = new L.featureGroup([]);
+		var raster_group = new L.LayerGroup([]);
+		var basemap_0 = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');	
+		basemap_0.addTo(map);
+		var basemap_1 = L.tileLayer('http://{s}.www.toolserver.org/tiles/bw-mapnik/{z}/{x}/{y}.png');	
+		var layerOrder=new Array();
+
+		var SonderingURL='http://geoportaal.bkgis.nl/geoserver/geonode/wfs?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetFeature&TYPENAME=geonode:waypoints_sondering&SRSNAME=EPSG:4326\
+			&FILTER=\
+			<ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">\
+	 			<ogc:PropertyIsEqualTo>\
+	  				<ogc:PropertyName>project_id</ogc:PropertyName>\
+	  				<ogc:Literal>{{ActiveProject}}</ogc:Literal>\
+	 			</ogc:PropertyIsEqualTo>\
+			</ogc:Filter>\
+			&outputFormat=text%2Fjavascript&format_options=callback%3AgetSonderingJson';	
+		SonderingURL=SonderingURL.replace(/SRSNAME\=EPSG\:\d+/, 'SRSNAME=EPSG:4326');
+		var exp_SonderingJSON = L.geoJson(null, {
+			pointToLayer: function (feature, latlng) {  
+				return L.circleMarker(latlng, {
+					radius: 6.0,
+					fillColor: '#33a02c',
+					color: '#000000',
+					weight: 1,
+					opacity: 1.0,
+					fillOpacity: 1.0
+				})
+			},
+			onEachFeature: function (feature, layer) {					
+			var popupContent = '<table><tr><th scope="row">sondering_id</th><td>' + Autolinker.link(String(feature.properties['sondering_id'])) +
+			'</td></tr><tr><th scope="row">sonderingident</th><td>' + Autolinker.link(String(feature.properties['sonderingident'])) +
+			'</td></tr><tr><th scope="row">x_rd</th><td>' + Autolinker.link(String(feature.properties['x_rd'])) +
+			'</td></tr><tr><th scope="row">y_rd</th><td>' + Autolinker.link(String(feature.properties['y_rd'])) +
+			'</td></tr><tr><th scope="row">mv_nap</th><td>' + Autolinker.link(String(feature.properties['mv_nap'])) +
+			'</td></tr><tr><th scope="row">dwarspositie</th><td>' + Autolinker.link(String(feature.properties['dwarspositie'])) +
+			'</td></tr><tr><th scope="row">datum_sondering</th><td>' + Autolinker.link(String(feature.properties['datum_sondering'])) +
+			'</td></tr><tr><th scope="row">bedrijf</th><td>' + Autolinker.link(String(feature.properties['bedrijf'])) +
+			'</td></tr><tr><th scope="row">project_id</th><td>' + Autolinker.link(String(feature.properties['project_id'])) +
+			'</td></tr><tr><th scope="row">type_sondeeronderzoek</th><td>' + Autolinker.link(String(feature.properties['type_sondeeronderzoek'])) +
+			'</td></tr><tr><th scope="row">methode_sondering</th><td>' + Autolinker.link(String(feature.properties['methode_sondering'])) +
+			'</td></tr><tr><th scope="row">einddiepte</th><td>' + Autolinker.link(String(feature.properties['einddiepte'])) +
+			'</td></tr><tr><th scope="row">einddiepte_type</th><td>' + Autolinker.link(String(feature.properties['einddiepte_type'])) +
+			'</td></tr><tr><th scope="row">bestand_sondering</th><td>' + Autolinker.link(String(feature.properties['bestand_sondering'])) +
+			'</td></tr><tr><th scope="row">gtlp_id</th><td>' + Autolinker.link(String(feature.properties['gtlp_id'])) +
+			'</td></tr><tr><th scope="row">gdr_id</th><td>' + Autolinker.link(String(feature.properties['gdr_id'])) +
+			'</td></tr><tr><th scope="row">gaf_id</th><td>' + Autolinker.link(String(feature.properties['gaf_id'])) +
+			'</td></tr><tr><th scope="row">bestand_pdf</th><td>' + Autolinker.link(String(feature.properties['bestand_pdf'])) + 
+			'</td></tr><tr><th scope="row">bestand_gef</th><td>' + Autolinker.link(String(feature.properties['bestand_gef'])) + 
+			'</td></tr><tr><th scope="row">bestand_grondonderzoek</th><td>' + Autolinker.link(String(feature.properties['bestand_grondonderzoek'])) + 
+			'</td></tr><tr><th scope="row">voorboring_aanwezig</th><td>' + Autolinker.link(String(feature.properties['voorboring_aanwezig'])) + 
+			'</td></tr><tr><th scope="row">gef_file</th><td>' + Autolinker.link(String(feature.properties['gef_file'])) + 
+			'</td></tr><tr><th scope="row">download_gef</th><td>' + Autolinker.link(String(feature.properties['download_gef'])) +  
+			'</td></tr><tr><th scope="row">status</th><td>' + Autolinker.link(String(feature.properties['status'])) + 
+			'</td></tr><tr><th scope="row">DateCreated</th><td>' + Autolinker.link(String(feature.properties['DateCreated'])) + 
+			'</td></tr><tr><th scope="row">DateMutated</th><td>' + Autolinker.link(String(feature.properties['DateMutated'])) + 
+			'</td></tr><tr><th scope="row">username</th><td>' + Autolinker.link(String(feature.properties['username'])) + 
+			'</td></tr></table>';
+			layer.bindPopup(popupContent);
+			}
+		});
+		layerOrder[layerOrder.length] = exp_SonderingJSON;
+		var cluster_groupSonderingJSON= new L.MarkerClusterGroup({showCoverageOnHover: false});
+		var Sonderingajax = $.ajax({
+			url : SonderingURL,
+			dataType : 'jsonp',
+			jsonpCallback : 'getSonderingJson',
+			contentType : 'application/json',
+			success : function (response) {
+				L.geoJson(response, {
+					onEachFeature: function (feature, layer) {
+						exp_SonderingJSON.addData(feature)
+					}
+				});
+				for (index = 0; index < layerOrder.length; index++) {
+					feature_group.removeLayer(layerOrder[index]);feature_group.addLayer(layerOrder[index]);
+				}
+				cluster_groupSonderingJSON.addLayer(exp_SonderingJSON);
+			}
+		});
+		var cluster_groupSonderingJSON= new L.MarkerClusterGroup({showCoverageOnHover: false});
+		cluster_groupSonderingJSON.addLayer(exp_SonderingJSON);
+		//add comment sign to hide this layer on the map in the initial view.
+		cluster_groupSonderingJSON.addTo(map);
+
+		var PeilbuisputURL='http://geoportaal.bkgis.nl/geoserver/geonode/wfs?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetFeature&TYPENAME=geonode:waypoints_peilbuisput&SRSNAME=EPSG:4326\
+			&FILTER=\
+			<ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">\
+	 			<ogc:PropertyIsEqualTo>\
+	  				<ogc:PropertyName>project_id</ogc:PropertyName>\
+	  				<ogc:Literal>{{ActiveProject}}</ogc:Literal>\
+	 			</ogc:PropertyIsEqualTo>\
+			</ogc:Filter>\
+			&outputFormat=text%2Fjavascript&format_options=callback%3AgetPeilbuisputJson';
+		PeilbuisputURL=PeilbuisputURL.replace(/SRSNAME\=EPSG\:\d+/, 'SRSNAME=EPSG:4326');
+		var exp_PeilbuisputJSON = L.geoJson(null, {
+			pointToLayer: function (feature, latlng) {  
+				return L.circleMarker(latlng, {
+					radius: 4.0,
+					fillColor: '#1f78b4',
+					color: '#000000',
+					weight: 1,
+					opacity: 1.0,
+					fillOpacity: 1.0
+				})
+			},
+			onEachFeature: function (feature, layer) {					
+			var popupContent = 
+			'<table><tr><th scope="row">borehole_id</th><td>' + Autolinker.link(String(feature.properties['borehole_id'])) +
+			'</td></tr><tr><th scope="row">boreholeident</th><td>' + Autolinker.link(String(feature.properties['boreholeident'])) +
+			'</td></tr><tr><th scope="row">boring_id</th><td>' + Autolinker.link(String(feature.properties['boring_id'])) +
+			'</td></tr><tr><th scope="row">peilbuisraai_id</th><td>' + Autolinker.link(String(feature.properties['peilbuisraai_id'])) +
+			'</td></tr><tr><th scope="row">x_rd</th><td>' + Autolinker.link(String(feature.properties['x_rd'])) +
+			'</td></tr><tr><th scope="row">y_rd</th><td>' + Autolinker.link(String(feature.properties['y_rd'])) +
+			'</td></tr><tr><th scope="row">mv_nap</th><td>' + Autolinker.link(String(feature.properties['mv_nap'])) +
+			'</td></tr><tr><th scope="row">dwarspositie</th><td>' + Autolinker.link(String(feature.properties['dwarspositie'])) +
+			'</td></tr><tr><th scope="row">datum_plaatsing</th><td>' + Autolinker.link(String(feature.properties['datum_plaatsing'])) +
+			'</td></tr><tr><th scope="row">aanwezig</th><td>' + Autolinker.link(String(feature.properties['aanwezig'])) +
+			'</td></tr><tr><th scope="row">datum_verwijdering</th><td>' + Autolinker.link(String(feature.properties['datum_verwijdering'])) +
+			'</td></tr><tr><th scope="row">bedrijf</th><td>' + Autolinker.link(String(feature.properties['bedrijf'])) +
+			'</td></tr><tr><th scope="row">project_id</th><td>' + Autolinker.link(String(feature.properties['project_id'])) +
+			'</td></tr><tr><th scope="row">type_peilbuisput</th><td>' + Autolinker.link(String(feature.properties['type_peilbuisput'])) +
+			'</td></tr><tr><th scope="row">aantal_peilbuizen</th><td>' + Autolinker.link(String(feature.properties['aantal_peilbuizen'])) +
+			'</td></tr><tr><th scope="row">bestand_peilbuisput</th><td>' + Autolinker.link(String(feature.properties['bestand_peilbuisput'])) +
+			'</td></tr><tr><th scope="row">bestand_parent</th><td>' + Autolinker.link(String(feature.properties['bestand_parent'])) +
+			'</td></tr><tr><th scope="row">gtlp_id</th><td>' + Autolinker.link(String(feature.properties['gtlp_id'])) +
+			'</td></tr><tr><th scope="row">bestand_gef</th><td>' + Autolinker.link(String(feature.properties['bestand_gef'])) +
+			'</td></tr><tr><th scope="row">bestand_grondonderzoek</th><td>' + Autolinker.link(String(feature.properties['bestand_grondonderzoek'])) +
+			'</td></tr><tr><th scope="row">gef_file</th><td>' + Autolinker.link(String(feature.properties['gef_file'])) +
+			'</td></tr><tr><th scope="row">download_gef</th><td>' + Autolinker.link(String(feature.properties['download_gef'])) + 
+			'</td></tr><tr><th scope="row">status</th><td>' + Autolinker.link(String(feature.properties['status'])) +
+			'</td></tr><tr><th scope="row">DateCreated</th><td>' + Autolinker.link(String(feature.properties['DateCreated'])) +
+			'</td></tr><tr><th scope="row">DateMutated</th><td>' + Autolinker.link(String(feature.properties['DateMutated'])) +
+			'</td></tr><tr><th scope="row">username</th><td>' + Autolinker.link(String(feature.properties['username'])) +
+			'</td></tr></table>';
+			layer.bindPopup(popupContent);
+			}
+		});
+		layerOrder[layerOrder.length] = exp_PeilbuisputJSON;
+		var cluster_groupPeilbuisputJSON= new L.MarkerClusterGroup({showCoverageOnHover: false});
+		var Peilbuisputajax = $.ajax({
+			url : PeilbuisputURL,
+			dataType : 'jsonp',
+			jsonpCallback : 'getPeilbuisputJson',
+			contentType : 'application/json',
+			success : function (response) {
+				L.geoJson(response, {
+					onEachFeature: function (feature, layer) {
+						exp_PeilbuisputJSON.addData(feature)
+					}
+				});
+				for (index = 0; index < layerOrder.length; index++) {
+					feature_group.removeLayer(layerOrder[index]);feature_group.addLayer(layerOrder[index]);
+				}
+				cluster_groupPeilbuisputJSON.addLayer(exp_PeilbuisputJSON);
+			}
+		});
+		var cluster_groupPeilbuisputJSON= new L.MarkerClusterGroup({showCoverageOnHover: false});
+		cluster_groupPeilbuisputJSON.addLayer(exp_PeilbuisputJSON);
+		//add comment sign to hide this layer on the map in the initial view.
+		cluster_groupPeilbuisputJSON.addTo(map);
+
+		var BoringURL='http://geoportaal.bkgis.nl/geoserver/geonode/wfs?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetFeature&TYPENAME=geonode:waypoints_boring&SRSNAME=EPSG:4326\
+			&FILTER=\
+			<ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">\
+	 			<ogc:PropertyIsEqualTo>\
+	  				<ogc:PropertyName>project_id</ogc:PropertyName>\
+	  				<ogc:Literal>{{ActiveProject}}</ogc:Literal>\
+	 			</ogc:PropertyIsEqualTo>\
+			</ogc:Filter>\
+			&outputFormat=text%2Fjavascript&format_options=callback%3AgetBoringJson';
+
+		/*var BoringURL='http://geoportaal.bkgis.nl/geoserver/geonode/wfs?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetFeature&TYPENAME=test:waypoints_boring_test&SRSNAME=EPSG:4326\
+			&outputFormat=text%2Fjavascript&format_options=callback%3AgetBoringJson';*/
+			
+		BoringURL=BoringURL.replace(/SRSNAME\=EPSG\:\d+/, 'SRSNAME=EPSG:4326');
+		var exp_BoringJSON = L.geoJson(null, {
+			pointToLayer: function (feature, latlng) {  
+				return L.circleMarker(latlng, {
+					radius: 4.4,
+					fillColor: '#ff7f00',
+					color: '#000000',
+					weight: 1,
+					opacity: 1.0,
+					fillOpacity: 1.0
+				})
+			},
+			onEachFeature: function (feature, layer) {					
+			var popupContent = 
+			'<table><tr><th scope="row">boring_id</th><td>' + Autolinker.link(String(feature.properties['boring_id'])) +
+			'</td></tr><tr><th scope="row">boringident</th><td>' + Autolinker.link(String(feature.properties['boringident'])) +
+			'</td></tr><tr><th scope="row">x_rd</th><td>' + Autolinker.link(String(feature.properties['x_rd'])) +
+			'</td></tr><tr><th scope="row">y_rd</th><td>' + Autolinker.link(String(feature.properties['y_rd'])) +
+			'</td></tr><tr><th scope="row">mv_nap</th><td>' + Autolinker.link(String(feature.properties['mv_nap'])) +
+			'</td></tr><tr><th scope="row">dwarspositie</th><td>' + Autolinker.link(String(feature.properties['dwarspositie'])) +
+			'</td></tr><tr><th scope="row">datum_boring</th><td>' + Autolinker.link(String(feature.properties['datum_boring'])) +
+			'</td></tr><tr><th scope="row">bedrijf</th><td>' + Autolinker.link(String(feature.properties['bedrijf'])) +
+			'</td></tr><tr><th scope="row">project_id</th><td>' + Autolinker.link(String(feature.properties['project_id'])) +
+			'</td></tr><tr><th scope="row">type_boring</th><td>' + Autolinker.link(String(feature.properties['type_boring'])) +
+			'</td></tr><tr><th scope="row">methode_boring</th><td>' + Autolinker.link(String(feature.properties['methode_boring'])) +
+			'</td></tr><tr><th scope="row">einddiepte</th><td>' + Autolinker.link(String(feature.properties['einddiepte'])) +
+			'</td></tr><tr><th scope="row">bestand_boring</th><td>' + Autolinker.link(String(feature.properties['bestand_boring'])) +
+			'</td></tr><tr><th scope="row">gtlp_id</th><td>' + Autolinker.link(String(feature.properties['gtlp_id'])) +
+			'</td></tr><tr><th scope="row">gdr_id</th><td>' + Autolinker.link(String(feature.properties['gdr_id'])) +
+			'</td></tr><tr><th scope="row">gaf_id</th><td>' + Autolinker.link(String(feature.properties['gaf_id'])) +
+			'</td></tr><tr><th scope="row">bestand_pdf</th><td>' + Autolinker.link(String(feature.properties['bestand_pdf'])) +
+			'</td></tr><tr><th scope="row">bestand_gef</th><td>' + Autolinker.link(String(feature.properties['bestand_gef'])) +
+			'</td></tr><tr><th scope="row">bestand_grondonderzoek</th><td>' + Autolinker.link(String(feature.properties['bestand_grondonderzoek'])) +
+			'</td></tr><tr><th scope="row">gef_file</th><td>' + Autolinker.link(String(feature.properties['gef_file'])) +
+			'</td></tr><tr><th scope="row">gef_file_bf</th><td>' + Autolinker.link(String(feature.properties['gef_file_bf'])) + 
+			'</td></tr><tr><th scope="row">download_gef</th><td>' + Autolinker.link(String(feature.properties['download_gef'])) +
+			'</td></tr><tr><th scope="row">status</th><td>' + Autolinker.link(String(feature.properties['status'])) +
+			'</td></tr><tr><th scope="row">DateCreated</th><td>' + Autolinker.link(String(feature.properties['DateCreated'])) +
+			'</td></tr><tr><th scope="row">DateMutated</th><td>' + Autolinker.link(String(feature.properties['DateMutated'])) +
+			'</td></tr><tr><th scope="row">username</th><td>' + Autolinker.link(String(feature.properties['username'])) +
+			'</td></tr></table>';
+			layer.bindPopup(popupContent);
+			}
+		});
+		layerOrder[layerOrder.length] = exp_BoringJSON;
+		var cluster_groupBoringJSON= new L.MarkerClusterGroup({showCoverageOnHover: false});
+		var Boringajax = $.ajax({
+			url : BoringURL,
+			dataType : 'jsonp',
+			jsonpCallback : 'getBoringJson',
+			contentType : 'application/json',
+			success : function (response) {
+				L.geoJson(response, {
+					onEachFeature: function (feature, layer) {
+						exp_BoringJSON.addData(feature)
+					}
+				});
+				for (index = 0; index < layerOrder.length; index++) {
+					feature_group.removeLayer(layerOrder[index]);feature_group.addLayer(layerOrder[index]);
+				}
+				cluster_groupBoringJSON.addLayer(exp_BoringJSON);
+			}
+		});
+		var cluster_groupBoringJSON= new L.MarkerClusterGroup({showCoverageOnHover: false});
+		cluster_groupBoringJSON.addLayer(exp_BoringJSON);
+		//add comment sign to hide this layer on the map in the initial view.
+		cluster_groupBoringJSON.addTo(map);
+
+		feature_group.addTo(map);
+		var title = new L.Control();
+		title.onAdd = function (map) {
+			this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+			this.update();
+			return this._div;
+		};
+		title.update = function () {
+			this._div.innerHTML = '<h2>web-viewer</h2>boringen, peilbuizen en sonderingen'
+		};
+		title.addTo(map);
+		/*var legend = L.control({position: 'bottomright'});
+		legend.onAdd = function (map) {
+			var div = L.DomUtil.create('div', 'info legend');
+			div.innerHTML = "<h3>Legend</h3><table></table>";
+    		return div;
+		};
+		legend.addTo(map);*/
+	var baseMaps = {
+		'OSM Standard': basemap_0,
+		'OSM Black & White': basemap_1};
+		L.control.layers(baseMaps,{"Boring (oranje)": cluster_groupBoringJSON,"Peilbuisput (blauw)": cluster_groupPeilbuisputJSON,"Sondering (groen)": cluster_groupSonderingJSON},{collapsed:false}).addTo(map);
+		L.control.scale({options: {position: 'bottomleft',maxWidth: 100,metric: true,imperial: false,updateWhenIdle: false}}).addTo(map);
+</script>
+

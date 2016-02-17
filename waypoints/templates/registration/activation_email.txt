@@ -1,0 +1,12 @@
+{% load i18n %}
+{% trans "Activate account at" %} {{ site.name }}:
+
+Beste gebruiker,
+
+Klik op de link hieronder om uw account te activeren.
+
+http://{{ site.domain }}{% url 'registration_activate' activation_key %}
+
+{% blocktrans %}De link is geldig voor {{ expiration_days }} dagen.{% endblocktrans %}
+
+Hoogheemraadschap Hollands Noorderkwartier

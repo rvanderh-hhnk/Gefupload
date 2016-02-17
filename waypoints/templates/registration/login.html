@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+
+{% block content %}
+<h1><center>Welkom bij het gefupload-portaal!<center/><h1/>
+<h4>
+	Login met uw persoonlijke account of gebruik het demo account:
+	<br/><br/> 
+	Username: demo
+	<br/>
+	Password: demo
+	<br/><br/><br/>
+<h4/>
+<div class='row'>
+<div class='col-sm-4 col-sm-offset-4'>
+<h2>Login</h2>
+<form method="post" action=".">
+  {% csrf_token %}
+  {{ form|crispy }}
+
+  <input class='btn btn-block btn-primary' type="submit" value="{% trans 'Submit' %}" />
+  <input type="hidden" name="next" value="{{ next }}" />
+</form>
+</div>
+
+</div>
+<hr/>
+<div class='row'>
+<div class='col-sm-6 col-sm-offset-3 text-align-center'>
+<p>{% trans "Wachtwoord vergeten" %}? <a href="{% url 'auth_password_reset' %}">{% trans "Reset wachtwoord!" %}</a></p>
+<p>{% trans "Nog geen account" %}? <a href="{% url 'registration_register' %}">{% trans "Registreer hier!" %}</a></p>
+</div>
+</div>
+
+{% endblock %}
