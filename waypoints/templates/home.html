@@ -73,7 +73,7 @@
     		{% endif %}
     	</div>
         <div class='col-md-3'>  
-            <form method='' action="{% url 'waypoints-opleveren' %}">{% csrf_token %}
+            <form method='' action="{% url 'waypoints-levering' %}">{% csrf_token %}
                 <input class='btn btn-success btn-block' type='submit' onclick="return confirm(
                 'Heeft u alle objecten gecontroleerd op juistheid? Als u dit project oplevert kunt u de gegevens achteraf niet meer wijzigen. Het proces van opleveren kan enkele minuten in beslag nemen.')" 
                 value='Opleveren project'>

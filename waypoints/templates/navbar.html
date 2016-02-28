@@ -39,7 +39,7 @@
         <li class="Projecten">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Mijn projecten <span class="caret"></span></a>
             <ul class="dropdown-menu">
-              <li><a>Projectnaam (#boringen, #peilbuisputten, #sonderingen) - projectstatus</a></li>
+              <li><a>projectid: projectnaam (#boringen, #sonderingen, #peilbuisputten, #peilbuizen) - projectstatus</a></li>
               <!-- <hr size="2" noshade> -->
               <li role="separator" class="divider"></li>
               {% for project in projecten %} 
@@ -48,15 +48,15 @@
                 <form action="{% url 'waypoints-index' %}" method="post">{% csrf_token %}
                   <!-- Hieronder een voorbeeld van onnodige herhaling van list objecten omdat het anders niet werkt... :-( -->
                   {% if project.project_status == 'in bewerking' %}
-                  <li><input type="submit" id="project_in_bewerking" name="project" value="{{project.project_name}} ({{project.aantal_boringen}},{{project.aantal_peilbuisputten}},{{project.aantal_sonderingen}}) - {{project.project_status}}"></li>
+                    <li><input type="submit" id="project_in_bewerking" name="project" value="{{project.project_id}}: {{project.project_name}} ({{project.aantal_boringen}},{{project.aantal_sonderingen}},{{project.aantal_peilbuisputten}},{{project.aantal_peilbuizen}}) - {{project.project_status}}"></li>
                   {% endif %}
                   {% if project.project_status == 'opgeleverd' %}
-                  <li><input type="submit" id="project_opgeleverd" name="project" value="{{project.project_name}} ({{project.aantal_boringen}},{{project.aantal_peilbuisputten}},{{project.aantal_sonderingen}}) - {{project.project_status}}"></li>
+                    <li><input type="submit" id="project_opgeleverd" name="project" value="{{project.project_id}}: {{project.project_name}} ({{project.aantal_boringen}},{{project.aantal_sonderingen}},{{project.aantal_peilbuisputten}},{{project.aantal_peilbuizen}}) - {{project.project_status}}"></li>
                   {% endif %}
                   {% if project.project_status == 'goedgekeurd' %}
-                  <li><input type="submit" id="project_goedgekeurd" name="project" value="{{project.project_name}} ({{project.aantal_boringen}},{{project.aantal_peilbuisputten}},{{project.aantal_sonderingen}}) - {{project.project_status}}"></li>
+                    <li><input type="submit" id="project_in_bewerking" name="project" value="{{project.project_id}}: {{project.project_name}} ({{project.aantal_boringen}},{{project.aantal_sonderingen}},{{project.aantal_peilbuisputten}},{{project.aantal_peilbuizen}}) - {{project.project_status}}"></li>
                   {% endif %}{% if project.project_status == 'afgekeurd' %}
-                  <li><input type="submit" id="project_afgekeurd" name="project" value="{{project.project_name}} ({{project.aantal_boringen}},{{project.aantal_peilbuisputten}},{{project.aantal_sonderingen}}) - {{project.project_status}}"></li>
+                    <li><input type="submit" id="project_in_bewerking" name="project" value="{{project.project_id}}: {{project.project_name}} ({{project.aantal_boringen}},{{project.aantal_sonderingen}},{{project.aantal_peilbuisputten}},{{project.aantal_peilbuizen}}) - {{project.project_status}}"></li>
                   {% endif %}
                   <!-- <meta http-equiv="refresh" content="5"> -->
                 </form> 

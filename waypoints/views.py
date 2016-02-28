@@ -24,10 +24,13 @@ import datetime
 from waypoints.models import Waypoint, Boring, Sondering, Peilbuisput, Projecten
 ## from .forms import # import form
 # Custom scripts 
-import UtlGefOpen
+import Gef2Open as UtlGefOpen
 import TestGefData
 import logging
 from Utl import print_log 
+# nodig voor ophalen headerdict 
+import pickle
+import ast
 
 
 # Global objects and variables
@@ -43,16 +46,19 @@ def index(request):
     global SiteURL
     global ActiveProject
     SiteURL = str(request.build_absolute_uri())
-    Upload_log = SiteURL+'media/logging/upload_log.log'
+    if settings.PRODUCTIE:
+        Upload_log = 'http://hhnk.bkgis.nl/static/gefupload/media/logging/upload_log.log'
+    else:
+        Upload_log = SiteURL+'media/logging/upload_log.log'
     try:
         ActiveProjectInfo = request.POST['project']
-        ActiveProject = ActiveProjectInfo[:(ActiveProjectInfo.find("(")-1)]
+        ActiveProject = ActiveProjectInfo[:(ActiveProjectInfo.find(":"))] # extraheert tot ":", dus haalt "id" uit "id:naam"
         print (ActiveProject)
     except:
         ActiveProject = NoActiveProject #AANVULLEND GRONDONDERZOEK I.V.M. MER DIJKVERSTERKING HOORN-EDAM' 
         ActiveProjectInfo = NoActiveProject
     waypoints = Waypoint.objects.order_by('name')
-    projecten = Projecten.objects.order_by("project_name")
+    projecten = Projecten.objects.order_by("project_id")
     template = loader.get_template('home.html')
     #template = loader.get_template('waypoints/index.html')
     title = 'Upload Portaal GEF-bestanden'
@@ -189,14 +195,13 @@ def upload(request):
     i_object_fout = 0 # aantal objecten met fouten niet aantal fouten
     if 'gef' in request.FILES:
         try:
-            print("gefTest")
             gefTest = request.FILES['gef']
         except IOError:
             print("gef")
 
         for File in request.FILES.getlist('gef'):
-            print (str(File)[-3:])
-            if str(File)[-3:] == "gef":
+            print (str(File))
+            if str(File)[-3:].lower() == "gef":
                 gefFile = File
                 files = []
                 handle, targetPath = tempfile.mkstemp()
@@ -206,17 +211,18 @@ def upload(request):
                     files.append(targetPath)
                 destination.close()
 
-                #1.) Header dictionary maken van GEF met UtlGefOpen
                 try:
-                    d_GEF = UtlGefOpen.headerdict(targetPath)
-                except IOError:
-                    print_log(request, "ERROR", 'onbekende fout bij uitlezen gef, pas %s aan'%gefFile)
+                    #1.) Header dictionary maken van GEF met UtlGefOpen/Gef2Open
+                    UtlGefOpen.read_gef(targetPath) # genereert tmpheaderdict.pk1
+                    d_GEF = UtlGefOpen.d_GEF() 
+                    
+                    # 2.) controleer en save gef.
+                    if not TestGefData.gef_main(request,gefFile,d_GEF): 
+                        i_object_fout += 1
 
-                # vaste waarden ophalen en testen in TestGefData.py 
-                
-                # 2.) controleer en save gef.
-                if not TestGefData.gef_main(request,gefFile,d_GEF):
-                    i_object_fout += 1
+                except Exception as e:
+                    print_log(request, "ERROR", 'fout bij uitlezen gef, %s'%gefFile)
+                    print_log(request, "ERROR", str(e))
 
             elif str(File)[-3:] == "pdf":
                 pdfFile = File
@@ -264,4 +270,8 @@ def contact(request):
 
 def geoportaal(request):
     return render_to_response('geoportaal.html')
+
+def levering(request):
+    return render_to_response('project_form.html')
+
 

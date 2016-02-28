@@ -37,7 +37,7 @@ def print_log(request,message_type,text):
 	if message_type == "WARNING":
 		logger.warning(text)
 		messages.warning(request,text)
-	if message_type == "ERROR":
+	if message_type == "ERROR" or message_type == "TIP":
 		file = settings.UPLOAD_LOGFILE
 		if os.path.exists(file):
 			upload_log = open(file, "a")

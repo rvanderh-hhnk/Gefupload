@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
+import django.contrib.gis.db.models.fields
 
 
 class Migration(migrations.Migration):
@@ -31,6 +32,21 @@ class Migration(migrations.Migration):
                 ('DateMutated', models.DateTimeField(auto_now=True, null=True)),
                 ('username', models.CharField(max_length=50, null=True)),
             ],
+        ),
+        migrations.AddField(
+            model_name='peilbuisgegevens',
+            name='geometry',
+            field=django.contrib.gis.db.models.fields.PointField(srid=4326, null=True),
+        ),
+        migrations.AddField(
+            model_name='peilbuisgegevens',
+            name='project_id',
+            field=models.CharField(max_length=150, null=True),
+        ),
+        migrations.AlterField(
+            model_name='boring',
+            name='bestand_pdf',
+            field=models.CharField(max_length=150, unique=True, null=True),
         ),
         migrations.RemoveField(
             model_name='filtergegevens',
@@ -74,6 +90,11 @@ class Migration(migrations.Migration):
             model_name='waypoint',
             name='status',
             field=models.CharField(default=b'nog niet gecontroleerd', max_length=32),
+        ),
+        migrations.AlterField(
+            model_name='sondering',
+            name='bestand_pdf',
+            field=models.CharField(max_length=150, unique=True, null=True),
         ),
         migrations.DeleteModel(
             name='Filtergegevens',

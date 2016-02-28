@@ -66,14 +66,12 @@ var map = L.map('map', {
 			'</td></tr><tr><th scope="row">datum_sondering</th><td>' + Autolinker.link(String(feature.properties['datum_sondering'])) +
 			'</td></tr><tr><th scope="row">bedrijf</th><td>' + Autolinker.link(String(feature.properties['bedrijf'])) +
 			'</td></tr><tr><th scope="row">project_id</th><td>' + Autolinker.link(String(feature.properties['project_id'])) +
+			'</td></tr><tr><th scope="row">project_naam</th><td>' + Autolinker.link(String(feature.properties['project_naam'])) +
 			'</td></tr><tr><th scope="row">type_sondeeronderzoek</th><td>' + Autolinker.link(String(feature.properties['type_sondeeronderzoek'])) +
 			'</td></tr><tr><th scope="row">methode_sondering</th><td>' + Autolinker.link(String(feature.properties['methode_sondering'])) +
 			'</td></tr><tr><th scope="row">einddiepte</th><td>' + Autolinker.link(String(feature.properties['einddiepte'])) +
 			'</td></tr><tr><th scope="row">einddiepte_type</th><td>' + Autolinker.link(String(feature.properties['einddiepte_type'])) +
 			'</td></tr><tr><th scope="row">bestand_sondering</th><td>' + Autolinker.link(String(feature.properties['bestand_sondering'])) +
-			'</td></tr><tr><th scope="row">gtlp_id</th><td>' + Autolinker.link(String(feature.properties['gtlp_id'])) +
-			'</td></tr><tr><th scope="row">gdr_id</th><td>' + Autolinker.link(String(feature.properties['gdr_id'])) +
-			'</td></tr><tr><th scope="row">gaf_id</th><td>' + Autolinker.link(String(feature.properties['gaf_id'])) +
 			'</td></tr><tr><th scope="row">bestand_pdf</th><td>' + Autolinker.link(String(feature.properties['bestand_pdf'])) + 
 			'</td></tr><tr><th scope="row">bestand_gef</th><td>' + Autolinker.link(String(feature.properties['bestand_gef'])) + 
 			'</td></tr><tr><th scope="row">bestand_grondonderzoek</th><td>' + Autolinker.link(String(feature.properties['bestand_grondonderzoek'])) + 
@@ -152,7 +150,6 @@ var map = L.map('map', {
 			'</td></tr><tr><th scope="row">aantal_peilbuizen</th><td>' + Autolinker.link(String(feature.properties['aantal_peilbuizen'])) +
 			'</td></tr><tr><th scope="row">bestand_peilbuisput</th><td>' + Autolinker.link(String(feature.properties['bestand_peilbuisput'])) +
 			'</td></tr><tr><th scope="row">bestand_parent</th><td>' + Autolinker.link(String(feature.properties['bestand_parent'])) +
-			'</td></tr><tr><th scope="row">gtlp_id</th><td>' + Autolinker.link(String(feature.properties['gtlp_id'])) +
 			'</td></tr><tr><th scope="row">bestand_gef</th><td>' + Autolinker.link(String(feature.properties['bestand_gef'])) +
 			'</td></tr><tr><th scope="row">bestand_grondonderzoek</th><td>' + Autolinker.link(String(feature.properties['bestand_grondonderzoek'])) +
 			'</td></tr><tr><th scope="row">gef_file</th><td>' + Autolinker.link(String(feature.properties['gef_file'])) +
@@ -226,13 +223,11 @@ var map = L.map('map', {
 			'</td></tr><tr><th scope="row">datum_boring</th><td>' + Autolinker.link(String(feature.properties['datum_boring'])) +
 			'</td></tr><tr><th scope="row">bedrijf</th><td>' + Autolinker.link(String(feature.properties['bedrijf'])) +
 			'</td></tr><tr><th scope="row">project_id</th><td>' + Autolinker.link(String(feature.properties['project_id'])) +
+			'</td></tr><tr><th scope="row">project_naam</th><td>' + Autolinker.link(String(feature.properties['project_naam'])) +
 			'</td></tr><tr><th scope="row">type_boring</th><td>' + Autolinker.link(String(feature.properties['type_boring'])) +
 			'</td></tr><tr><th scope="row">methode_boring</th><td>' + Autolinker.link(String(feature.properties['methode_boring'])) +
 			'</td></tr><tr><th scope="row">einddiepte</th><td>' + Autolinker.link(String(feature.properties['einddiepte'])) +
 			'</td></tr><tr><th scope="row">bestand_boring</th><td>' + Autolinker.link(String(feature.properties['bestand_boring'])) +
-			'</td></tr><tr><th scope="row">gtlp_id</th><td>' + Autolinker.link(String(feature.properties['gtlp_id'])) +
-			'</td></tr><tr><th scope="row">gdr_id</th><td>' + Autolinker.link(String(feature.properties['gdr_id'])) +
-			'</td></tr><tr><th scope="row">gaf_id</th><td>' + Autolinker.link(String(feature.properties['gaf_id'])) +
 			'</td></tr><tr><th scope="row">bestand_pdf</th><td>' + Autolinker.link(String(feature.properties['bestand_pdf'])) +
 			'</td></tr><tr><th scope="row">bestand_gef</th><td>' + Autolinker.link(String(feature.properties['bestand_gef'])) +
 			'</td></tr><tr><th scope="row">bestand_grondonderzoek</th><td>' + Autolinker.link(String(feature.properties['bestand_grondonderzoek'])) +
@@ -273,7 +268,7 @@ var map = L.map('map', {
 
 		//
 		//
-		// Nieuw stuk voor Peilbuisgegevens!!!
+		// Nieuw stuk voor Peilbuisgegevens!!! 
 		var PeilbuisgegevensURL='http://geoportaal.bkgis.nl/geoserver/geonode/wfs?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetFeature&TYPENAME=geonode:waypoints_peilbuisgegevens&SRSNAME=EPSG:4326\
 			&FILTER=\
 			<ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">\
