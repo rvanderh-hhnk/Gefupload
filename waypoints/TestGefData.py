@@ -1119,6 +1119,37 @@ def ProjectCount(request):
     # print (d_prj)
     return d_prj
 
+def SetActiveProject(ActiveProject):
+    """Zet ActiveProject op juist veld"""
+    try:
+        q_active = Projecten.objects.filter(active=True)
+        if len(q_active)>0:
+            if q_active == ActiveProject:
+                return "gelukt" # breek af, ActiveProject staat al goed.
+            else:
+                p = Projecten.objects.get(active=True)
+                p.active = False
+                p.save()
+        if len(Projecten.objects.filter(project_id=ActiveProject))>0:
+            p = Projecten.objects.get(project_id=ActiveProject)
+            p.active = True
+            p.save()
+            return "gelukt"
+        else:
+            return "Onverwachte fout: Project komt niet voor in ProjectenTabel!"    
+    except Exception as e:
+        return e
+
+def GetActiveProject():
+    q=Projecten.objects.filter(active=True).values_list('project_id','project_name')#,flat=True)
+    print(q)
+    if len(q)==0:
+        return None
+    elif len(q)==1:
+        return q[0]
+    else:
+        return "Er zijn meerdere geactiveerd!" 
+
 def send_email_gefupload():
     # email verzenden werkt nog niet goed, traag, maar lukt soms wel.
    html_header = '''<h1>gefupload in gebruik</h1>'''

@@ -43,8 +43,8 @@ def index(request):
     logger.info("refresh index")
     if str(request.user) == "AnonymousUser":
         return HttpResponseRedirect(reverse('auth_login'))
-    global SiteURL
-    global ActiveProject
+    # global SiteURL
+    # global ActiveProject
     SiteURL = str(request.build_absolute_uri())
     if settings.PRODUCTIE:
         Upload_log = 'http://hhnk.bkgis.nl/static/gefupload/media/logging/upload_log.log'
@@ -53,10 +53,13 @@ def index(request):
     try:
         ActiveProjectInfo = request.POST['project']
         ActiveProject = ActiveProjectInfo[:(ActiveProjectInfo.find(":"))] # extraheert tot ":", dus haalt "id" uit "id:naam"
-        print (ActiveProject)
+        
     except:
         ActiveProject = NoActiveProject #AANVULLEND GRONDONDERZOEK I.V.M. MER DIJKVERSTERKING HOORN-EDAM' 
         ActiveProjectInfo = NoActiveProject
+    SetProj = TestGefData.SetActiveProject(ActiveProject)
+    if SetProj != "gelukt":
+        print_log (request,"Error",SetProj)
     waypoints = Waypoint.objects.order_by('name')
     projecten = Projecten.objects.order_by("project_id")
     template = loader.get_template('home.html')
@@ -96,13 +99,14 @@ def delete(request): # delete all user data
 def del_project(request): # delete active project 
     logger.info("this is an info message!")
     cursor = connection.cursor()
+    ActiveProject = TestGefData.GetActiveProject()[0] # [0] = ProjectiD, [1] = ProjectName
     if ActiveProject != NoActiveProject:
         print_log(request, "SUCCESS", '%s succesvol verwijderd!'%ActiveProject)	
         cursor.execute("DELETE FROM waypoints_boring WHERE project_id = '" + ActiveProject + "';"+
                        "DELETE FROM waypoints_sondering WHERE project_id = '" + ActiveProject + "';"+
                        "DELETE FROM waypoints_peilbuisput WHERE project_id = '" + ActiveProject + "';"+
-                       "DELETE FROM waypoints_waypoint WHERE projectid = '" + ActiveProject + "';"+
-                       "DELETE FROM waypoints_projecten WHERE project_name = '" + ActiveProject + "';")
+                       "DELETE FROM waypoints_waypoint WHERE project_id = '" + ActiveProject + "';"+
+                       "DELETE FROM waypoints_projecten WHERE project_id = '" + ActiveProject + "';")
     else:
         print_log(request, "ERROR", 'Geen project verwijderd.\n\
                                                         Selecteer een project in "Mijn projecten".\n\
@@ -121,6 +125,7 @@ def truncate(request):
     return HttpResponseRedirect(reverse('waypoints-index'))
 
 def opleveren(request):
+    ActiveProject = TestGefData.GetActiveProject()[0] # [0] = ProjectiD, [1] = ProjectName
     if ActiveProject != NoActiveProject:    
         p = Projecten.objects.get(project_name = ActiveProject)
         p.project_status = "opgeleverd"
@@ -166,24 +171,7 @@ def upload(request):
     '''Behandeld geuploade gef- of pdf-bestanden met behulp van verschillende functies. 
         Houdt bij hoeveel objecten er zijn in projecten, haalt dictonary uit UtlGefOpen, 
         regelt gef-check en opslaan in TestGefData.'''
-    # Poging om nieuwe logfile te maken per upload... Nog niet gelukt
-    # logger = logging.getLogger('waypoints') #Create a log with the same name as the script that created it
-    # logger.setLevel('DEBUG')
-
-    # #Create handlers and set their logging level
-    # filehandler_dbg = logging.FileHandler(logger.name + '-debug.log', mode='w')
-    # filehandler_dbg.setLevel('DEBUG') 
-
-    # #Create custom formats of the logrecord fit for both the logfile and the console
-    # streamformatter = logging.Formatter(fmt='%(levelname)s:\t%(threadName)s:\t%(funcName)s:\t\t%(message)s', datefmt='%H:%M:%S') #We only want to see certain parts of the message
-
-    # #Apply formatters to handlers
-    # filehandler_dbg.setFormatter(streamformatter)
-
-    # #Add handlers to logger
-    # logger.addHandler(filehandler_dbg)
-
-
+    
     # open upload logfile en truncate file
     file = settings.UPLOAD_LOGFILE
     upload_log = open(file, "w+")

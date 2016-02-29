@@ -160,5 +160,6 @@ class Projecten(models.Model):
     aantal_peilbuizen = models.IntegerField(null=True)
     user_id = models.ForeignKey(User)
     username = models.CharField(max_length=50,null=True)
+    active = models.BooleanField(default=False)
     def __str__(self):
         return '%s %s'%(self.project_name, self.project_status)
